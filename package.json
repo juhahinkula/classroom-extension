@@ -1,0 +1,140 @@
+{
+  "name": "classroom-extension",
+  "displayName": "Classroom50",
+  "description": "Classroom50 student extension – browse classrooms, accept assignments, and submit work.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.120.0"
+  },
+  "categories": [
+    "Education",
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "classroom50-container",
+          "title": "Classroom50",
+          "icon": "media/classroom50.svg"
+        }
+      ]
+    },
+    "views": {
+      "classroom50-container": [
+        {
+          "id": "classroom50",
+          "name": "Classroom50",
+          "icon": "media/classroom50.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "classroom50.login",
+        "title": "Sign in to GitHub",
+        "icon": "$(github)",
+        "category": "Classroom50"
+      },
+      {
+        "command": "classroom50.logout",
+        "title": "Sign out of GitHub",
+        "icon": "$(sign-out)",
+        "category": "Classroom50"
+      },
+      {
+        "command": "classroom50.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)",
+        "category": "Classroom50"
+      },
+      {
+        "command": "classroom50.addOrg",
+        "title": "Add Organization",
+        "icon": "$(add)",
+        "category": "Classroom50"
+      },
+      {
+        "command": "classroom50.addClassroom",
+        "title": "Add Classroom",
+        "icon": "$(add)",
+        "category": "Classroom50"
+      },
+      {
+        "command": "classroom50.accept",
+        "title": "Accept Assignment",
+        "icon": "$(check)",
+        "category": "Classroom50"
+      },
+      {
+        "command": "classroom50.openOnGitHub",
+        "title": "Open on GitHub",
+        "icon": "$(link-external)",
+        "category": "Classroom50"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "classroom50.refresh",
+          "when": "view == classroom50",
+          "group": "navigation"
+        },
+        {
+          "command": "classroom50.addOrg",
+          "when": "view == classroom50",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "classroom50.addClassroom",
+          "when": "view == classroom50 && viewItem == org",
+          "group": "inline"
+        },
+        {
+          "command": "classroom50.accept",
+          "when": "view == classroom50 && viewItem == assignment-pending",
+          "group": "inline"
+        },
+        {
+          "command": "classroom50.openOnGitHub",
+          "when": "view == classroom50 && viewItem == assignment-accepted",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Classroom50",
+      "properties": {
+        "classroom50.orgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "GitHub organization names to show in the Classroom50 panel. Add organizations manually with the command palette."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.120.0",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.39.3",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1"
+  }
+}
