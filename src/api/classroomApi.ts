@@ -21,6 +21,7 @@ export async function listUserReposInOrg(
   );
 }
 
+ // Not in use either
  // Return true when the org has a classroom50 config repo. Note! works only with public repos
 export async function hasClassroomConfigRepo(
   token: string,
