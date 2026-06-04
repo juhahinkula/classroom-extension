@@ -1,3 +1,8 @@
+/*
+  Student accept an assignment
+  This do the same operations than `gh student accept` cli command
+  For more information: https://github.com/foundation50/classroom50/wiki/gh-student
+*/
 import * as vscode from 'vscode';
 import { requireGitHubSession } from '../auth/authProvider';
 import {

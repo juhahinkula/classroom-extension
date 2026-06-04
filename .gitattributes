@@ -1,0 +1,6 @@
+# The following rule ensures that all files in this repository use LF line endings regardless of the operating system.
+# This is important for consistency and to avoid issues with line endings when running scripts or tests in different environments.
+#
+# see https://docs.github.com/en/get-started/getting-started-with-git/configuring-git-to-handle-line-endings
+* text=auto eol=lf
+*.sh text eol=lf
