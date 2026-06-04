@@ -4,7 +4,7 @@ const GITHUB_AUTH_PROVIDER_ID = 'github';
 // read:org — org membership lookup + invite accept
 // repo     — create repos, write files via git-data API
 // read:user — get login/email for commit author
-const SCOPES = ['read:org', 'repo', 'read:user'];
+const SCOPES = ['read:org', 'repo', 'read:user', 'workflow'];
 
 export async function getGitHubSession(
   createIfNone = false

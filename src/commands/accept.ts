@@ -55,7 +55,7 @@ export async function acceptAssignment(info: AssignmentInfo): Promise<string | u
       const matched = assignments.find((a) => a.slug === entry.slug);
       if (!matched) {
         throw new Error(
-          `Assignment "${entry.slug}" is not registered in ${org}/${classroom}. Ask your instructor to run \`gh teacher assignment add\`.`
+          `Assignment "${entry.slug}" is not registered in ${org}/${classroom}. Contact your teacher.`
         );
       }
       if (matched.mode && matched.mode !== '' && matched.mode !== 'individual') {
@@ -64,7 +64,7 @@ export async function acceptAssignment(info: AssignmentInfo): Promise<string | u
       const tmpl = matched.template;
       if (!tmpl.owner || !tmpl.repo || !tmpl.branch) {
         throw new Error(
-          `Assignment "${entry.slug}" has an incomplete template ref. Ask your instructor to re-run \`gh teacher assignment add\`.`
+          `Assignment "${entry.slug}" has an incomplete template ref. Contact your teacher.`
         );
       }
 
