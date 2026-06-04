@@ -1,8 +1,8 @@
 {
   "name": "classroom-extension",
   "displayName": "Classroom50",
-  "description": "Classroom50 student extension – browse classrooms, accept assignments, and submit work.",
-  "version": "0.0.1",
+  "description": "Classroom50 student extension - browse classrooms, accept assignments, and submit work.",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.120.0"
   },
