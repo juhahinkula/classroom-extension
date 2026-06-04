@@ -1,9 +1,18 @@
+/*
+  Authentication is using VS Code's Github authentication provider.
+  The session object contains authToken that is used in the extentions.
+
+  For example,
+  const session = await requireGitHubSession();
+  const token = session.accessToken;
+*/
 import * as vscode from 'vscode';
 
 const GITHUB_AUTH_PROVIDER_ID = 'github';
 // read:org — org membership lookup + invite accept
 // repo     — create repos, write files via git-data API
 // read:user — get login/email for commit author
+// workflow - needed in the accept phase due to autgrading
 const SCOPES = ['read:org', 'repo', 'read:user', 'workflow'];
 
 export async function getGitHubSession(

@@ -7,6 +7,7 @@ export function pagesAssignmentsUrl(org: string, classroom: string): string {
   return `https://${org}.github.io/${CONFIG_REPO}/${classroom}/assignments.json`;
 }
 
+// TODO: Is this ok??
 export const AUTOGRADE_SHIM_URL =
   'https://raw.githubusercontent.com/foundation50/classroom50/main/cli/gh-student/embed/autograde-shim.yaml';
 
