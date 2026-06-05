@@ -56,6 +56,12 @@
         "category": "Classroom50"
       },
       {
+        "command": "classroom50.removeOrg",
+        "title": "Remove Organization",
+        "icon": "$(trash)",
+        "category": "Classroom50"
+      },
+      {
         "command": "classroom50.addClassroom",
         "title": "Add Classroom",
         "icon": "$(add)",
@@ -88,6 +94,11 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "classroom50.removeOrg",
+          "when": "view == classroom50 && viewItem == org",
+          "group": "inline"
+        },
         {
           "command": "classroom50.addClassroom",
           "when": "view == classroom50 && viewItem == org",

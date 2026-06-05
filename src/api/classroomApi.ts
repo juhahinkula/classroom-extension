@@ -11,6 +11,17 @@ export async function listUserOrgs(token: string): Promise<GitHubOrg[]> {
   return ghFetch<GitHubOrg[]>(token, 'user/orgs?per_page=100');
 }
 
+export async function getOrg(token: string, org: string): Promise<GitHubOrg | null> {
+  try {
+    return await ghFetch<GitHubOrg>(token, `orgs/${encodeURIComponent(org)}`);
+  } catch (err) {
+    if (err instanceof GitHubError && err.status === 404) {
+      return null;
+    }
+    throw err;
+  }
+}
+
 export async function listUserReposInOrg(
   token: string,
   org: string
@@ -138,6 +149,26 @@ export function assignmentRepoName(
 export type OrgMembershipStatus = {
   state: 'active' | 'pending';
 };
+
+export function validateOrgAccess(
+  org: string,
+  orgInfo: GitHubOrg | null,
+  membership: OrgMembershipStatus | null
+): string | undefined {
+  if (!orgInfo) {
+    return `Organization "${org}" was not found on GitHub.`;
+  }
+
+  if (!membership) {
+    return `You do not appear to belong to "${org}" yet. Ask an owner to invite you.`;
+  }
+
+  if (membership.state === 'pending') {
+    return `Your membership in "${org}" is still pending. Accept the invitation first.`;
+  }
+
+  return undefined;
+}
 
 export async function getOrgMembership(
   token: string,

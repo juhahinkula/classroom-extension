@@ -3,6 +3,8 @@ import { ClassroomTreeProvider, AssignmentItem, OrgItem } from './providers/clas
 import { AssignmentPanel } from './webview/assignmentPanel';
 import { loginCommand, logoutCommand } from './commands/login';
 import { acceptAssignment } from './commands/accept';
+import { requireGitHubSession } from './auth/authProvider';
+import { getOrg, getOrgMembership, validateOrgAccess } from './api/classroomApi';
 import { AssignmentInfo } from './types';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -25,6 +27,8 @@ export function activate(context: vscode.ExtensionContext) {
       treeProvider.refresh();
     }),
 
+    // User can add a new organization. After that we check that user belongs to typed organization.
+    // Note! This adds organization only to VS Code persistent state.
     vscode.commands.registerCommand('classroom50.addOrg', async () => {
       const org = await vscode.window.showInputBox({
         prompt: 'Enter the GitHub organization name',
@@ -34,15 +38,67 @@ export function activate(context: vscode.ExtensionContext) {
       if (!org) {
         return;
       }
+
+      const trimmedOrg = org.trim();
+      try {
+        const session = await requireGitHubSession();
+        const orgInfo = await getOrg(session.accessToken, trimmedOrg);
+        const membership = await getOrgMembership(session.accessToken, trimmedOrg);
+        const validationError = validateOrgAccess(trimmedOrg, orgInfo, membership);
+
+        if (validationError) {
+          vscode.window.showErrorMessage(validationError);
+          return;
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Unable to verify organization "${trimmedOrg}": ${message}`);
+        return;
+      }
+
       const config = vscode.workspace.getConfiguration('classroom50');
       const current = config.get<string[]>('orgs') ?? [];
-      if (!current.includes(org.trim())) {
+      if (!current.includes(trimmedOrg)) {
         await config.update(
           'orgs',
-          [...current, org.trim()],
+          [...current, trimmedOrg],
           vscode.ConfigurationTarget.Global
         );
       }
+      treeProvider.refresh();
+    }),
+
+    vscode.commands.registerCommand('classroom50.removeOrg', async (item?: OrgItem) => {
+      let org = item?.org;
+      if (!org) {
+        org = await vscode.window.showInputBox({
+          prompt: 'Enter the GitHub organization name to remove',
+          placeHolder: 'e.g. cs50',
+        });
+      }
+      if (!org) {
+        return;
+      }
+
+      const trimmedOrg = org.trim();
+      const choice = await vscode.window.showWarningMessage(
+        `Remove organization "${trimmedOrg}" from Classroom50?`,
+        { modal: true },
+        'Remove'
+      );
+      if (choice !== 'Remove') {
+        return;
+      }
+
+      const config = vscode.workspace.getConfiguration('classroom50');
+      const current = config.get<string[]>('orgs') ?? [];
+      await config.update(
+        'orgs',
+        current.filter((entry) => entry.trim().toLowerCase() !== trimmedOrg.toLowerCase()),
+        vscode.ConfigurationTarget.Global
+      );
+
+      await context.globalState.update(`classrooms:${trimmedOrg}`, undefined);
       treeProvider.refresh();
     }),
 
@@ -57,6 +113,24 @@ export function activate(context: vscode.ExtensionContext) {
       if (!org) {
         return;
       }
+
+      const trimmedOrg = org.trim();
+      try {
+        const session = await requireGitHubSession();
+        const orgInfo = await getOrg(session.accessToken, trimmedOrg);
+        const membership = await getOrgMembership(session.accessToken, trimmedOrg);
+        const validationError = validateOrgAccess(trimmedOrg, orgInfo, membership);
+
+        if (validationError) {
+          vscode.window.showErrorMessage(validationError);
+          return;
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Unable to verify organization "${trimmedOrg}": ${message}`);
+        return;
+      }
+
       const classroom = await vscode.window.showInputBox({
         prompt: `Enter the classroom slug for org "${org}"`,
         placeHolder: 'e.g. cs50-fall-2026',
@@ -65,7 +139,7 @@ export function activate(context: vscode.ExtensionContext) {
       if (!classroom) {
         return;
       }
-      await treeProvider.addClassroom(org, classroom.trim());
+      await treeProvider.addClassroom(trimmedOrg, classroom.trim());
       treeProvider.refresh();
     }),
 
