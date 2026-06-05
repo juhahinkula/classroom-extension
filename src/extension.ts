@@ -82,7 +82,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       const trimmedOrg = org.trim();
       const choice = await vscode.window.showWarningMessage(
-        `Remove organization "${trimmedOrg}" from Classroom50?`,
+        `Remove "${trimmedOrg}" from VS Code? This only removes it from your local VS Code settings — the organization on GitHub is not affected.`,
         { modal: true },
         'Remove'
       );
