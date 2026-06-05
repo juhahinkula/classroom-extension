@@ -10,6 +10,7 @@ export function getAssignmentWebviewContent(
   const { releaseNotes } = info;
   const templateUrl = `https://github.com/${entry.template.owner}/${entry.template.repo}`;
   const accepted = status === 'accepted';
+  const cloneCommand = repoUrl ? `git clone ${repoUrl.replace(/\/$/, '')}.git` : '';
 
   const acceptButton = accepted
     ? `<a class="btn btn-secondary" href="${repoUrl}" id="openBtn">Open Repository ↗</a>`
@@ -73,6 +74,29 @@ export function getAssignmentWebviewContent(
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-secondary { background: transparent; color: var(--link); border: 1px solid var(--border); }
     .btn-secondary:hover { text-decoration: underline; }
+    .btn-tertiary {
+      background: transparent;
+      color: var(--fg);
+      border: 1px solid var(--border);
+    }
+    .btn-tertiary:hover { background: var(--vscode-toolbar-hoverBackground); }
+    .clone-command {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .clone-command code {
+      display: inline-block;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: var(--vscode-textCodeBlock-background);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+      overflow-x: auto;
+      max-width: 100%;
+    }
     .progress { display: none; font-style: italic; color: var(--vscode-descriptionForeground); margin-top: 8px; }
     hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
     .release-notes { margin-top: 8px; }
@@ -109,6 +133,14 @@ export function getAssignmentWebviewContent(
     <div class="value"><a href="${repoUrl}" id="repoLink">${escapeHtml(repoUrl.replace('https://github.com/', ''))}</a></div>
   </div>` : ''}
 
+  ${accepted && repoUrl ? `<div class="section">
+    <div class="label">Clone</div>
+    <div class="clone-command">
+      <code id="cloneCommand">${escapeHtml(cloneCommand)}</code>
+      <button class="btn btn-tertiary" id="copyCloneBtn">Copy</button>
+    </div>
+  </div>` : ''}
+
   ${repoUrl && releaseNotes ? `<div class="section release-notes">
     <div class="label">Grading</div>
     <pre class="release-body">${escapeHtml(releaseNotes)}</pre>
@@ -126,6 +158,8 @@ export function getAssignmentWebviewContent(
 
     const acceptBtn = document.getElementById('acceptBtn');
     const openBtn   = document.getElementById('openBtn');
+    const copyCloneBtn = document.getElementById('copyCloneBtn');
+    const cloneCommandEl = document.getElementById('cloneCommand');
     const progress  = document.getElementById('progress');
 
     if (acceptBtn) {
@@ -133,6 +167,15 @@ export function getAssignmentWebviewContent(
         acceptBtn.disabled = true;
         progress.style.display = 'block';
         vscode.postMessage({ type: 'accept' });
+      });
+    }
+
+    if (copyCloneBtn && cloneCommandEl) {
+      copyCloneBtn.addEventListener('click', () => {
+        vscode.postMessage({
+          type: 'copyCloneCommand',
+          command: cloneCommandEl.textContent || '',
+        });
       });
     }
 

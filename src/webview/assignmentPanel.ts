@@ -5,7 +5,8 @@ import { getAssignmentWebviewContent } from './assignmentWebviewContent';
 
 type WebviewMessage =
   | { type: 'accept' }
-  | { type: 'openExternal'; url: string };
+  | { type: 'openExternal'; url: string }
+  | { type: 'copyCloneCommand'; command: string };
 
 export class AssignmentPanel {
   private static readonly viewType = 'classroom50.assignment';
@@ -90,6 +91,10 @@ export class AssignmentPanel {
         break;
       case 'openExternal':
         await vscode.env.openExternal(vscode.Uri.parse(msg.url));
+        break;
+      case 'copyCloneCommand':
+        await vscode.env.clipboard.writeText(msg.command);
+        await vscode.window.showInformationMessage('Clone command copied to clipboard');
         break;
     }
   }
