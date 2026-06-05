@@ -245,4 +245,11 @@ export class ClassroomTreeProvider
       await this.context.globalState.update(key, [...existing, classroom]);
     }
   }
+
+  async removeClassroom(org: string, classroom: string): Promise<void> {
+    const key = `classrooms:${org}`;
+    const existing = this.context.globalState.get<string[]>(key) ?? [];
+    const remaining = existing.filter((entry) => entry.trim().toLowerCase() !== classroom.trim().toLowerCase());
+    await this.context.globalState.update(key, remaining.length > 0 ? remaining : undefined);
+  }
 }

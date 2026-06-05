@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ClassroomTreeProvider, AssignmentItem, OrgItem } from './providers/classroomTreeProvider';
+import { ClassroomTreeProvider, AssignmentItem, ClassroomItem, OrgItem } from './providers/classroomTreeProvider';
 import { AssignmentPanel } from './webview/assignmentPanel';
 import { loginCommand, logoutCommand } from './commands/login';
 import { acceptAssignment } from './commands/accept';
@@ -140,6 +140,44 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
       await treeProvider.addClassroom(trimmedOrg, classroom.trim());
+      treeProvider.refresh();
+    }),
+
+    vscode.commands.registerCommand('classroom50.removeClassroom', async (item?: ClassroomItem) => {
+      let org = item?.org;
+      let classroom = item?.classroom;
+
+      if (!org || !classroom) {
+        const combined = await vscode.window.showInputBox({
+          prompt: 'Enter the classroom slug to remove in the form org/classroom',
+          placeHolder: 'e.g. cs50/cs50-fall-2026',
+          validateInput: (v) => (v.trim() ? undefined : 'Classroom identifier cannot be empty'),
+        });
+        if (!combined) {
+          return;
+        }
+
+        const parts = combined.split('/').map((part) => part.trim()).filter(Boolean);
+        if (parts.length !== 2) {
+          vscode.window.showErrorMessage('Enter the classroom as org/classroom.');
+          return;
+        }
+
+        [org, classroom] = parts;
+      }
+
+      const trimmedOrg = org.trim();
+      const trimmedClassroom = classroom.trim();
+      const choice = await vscode.window.showWarningMessage(
+        `Remove classroom "${trimmedClassroom}" from org "${trimmedOrg}" in VS Code? This only removes it from your local VS Code settings — the classroom on GitHub is not affected.`,
+        { modal: true },
+        'Remove'
+      );
+      if (choice !== 'Remove') {
+        return;
+      }
+
+      await treeProvider.removeClassroom(trimmedOrg, trimmedClassroom);
       treeProvider.refresh();
     }),
 

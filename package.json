@@ -68,6 +68,12 @@
         "category": "Classroom50"
       },
       {
+        "command": "classroom50.removeClassroom",
+        "title": "Remove Classroom",
+        "icon": "$(trash)",
+        "category": "Classroom50"
+      },
+      {
         "command": "classroom50.accept",
         "title": "Accept Assignment",
         "icon": "$(check)",
@@ -102,6 +108,11 @@
         {
           "command": "classroom50.addClassroom",
           "when": "view == classroom50 && viewItem == org",
+          "group": "inline"
+        },
+        {
+          "command": "classroom50.removeClassroom",
+          "when": "view == classroom50 && viewItem == classroom",
           "group": "inline"
         },
         {
