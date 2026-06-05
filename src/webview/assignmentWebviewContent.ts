@@ -8,7 +8,6 @@ export function getAssignmentWebviewContent(
 ): string {
   const { entry, org, classroom, status, repoUrl } = info;
   const { releaseNotes } = info;
-  const templateUrl = `https://github.com/${entry.template.owner}/${entry.template.repo}`;
   const accepted = status === 'accepted';
   const cloneCommand = repoUrl ? `git clone ${repoUrl.replace(/\/$/, '')}.git` : '';
 
