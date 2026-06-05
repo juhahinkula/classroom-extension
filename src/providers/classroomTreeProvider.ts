@@ -158,14 +158,13 @@ export class ClassroomTreeProvider
       this.context.globalState.get<string[]>(storeKey) ?? [];
 
     let discovered: string[] = [];
-    let discoveryError: string | undefined;
     try {
       const user = await getUser(token);
       const fromConfigRepo = await listClassroomsFromConfigRepo(token, org);
       const fromRepos = await discoverClassroomsFromRepos(token, org, user.login);
       discovered = [...new Set([...fromConfigRepo, ...fromRepos])];
-    } catch (err: unknown) {
-      discoveryError = err instanceof Error ? err.message : String(err);
+    } catch {
+      // Discovery is best-effort; stored classrooms still render fine
     }
 
     const combined = [...new Set([...stored, ...discovered])];
@@ -176,13 +175,10 @@ export class ClassroomTreeProvider
     }
 
     if (combined.length === 0) {
-      const items: ClassroomTreeItem[] = [];
-      if (discoveryError) {
-        items.push(new MessageItem(`Could not load classrooms: ${discoveryError}`, 'error'));
-      }
-      items.push(new MessageItem('No classrooms found in this org', 'info'));
-      items.push(new ActionItem('Add classroom…', 'classroom50.addClassroom', [new OrgItem(org)]));
-      return items;
+      return [
+        new MessageItem('No classrooms found in this org', 'info'),
+        new ActionItem('Add classroom…', 'classroom50.addClassroom', [new OrgItem(org)]),
+      ];
     }
 
     return combined.map((c) => new ClassroomItem(org, c));
