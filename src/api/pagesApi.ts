@@ -7,6 +7,33 @@ export function pagesAssignmentsUrl(org: string, classroom: string): string {
   return `https://${org}.github.io/${CONFIG_REPO}/${classroom}/assignments.json`;
 }
 
+type ClassroomsIndexFile = {
+  classrooms: { short_name: string }[];
+};
+
+// Fetch classrooms from Github pages
+export async function fetchClassroomsFromPages(org: string): Promise<string[]> {
+  const url = `https://${org}.github.io/${CONFIG_REPO}/classrooms-index.json`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PAGES_FETCH_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(url, { signal: controller.signal });
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const file = (await response.json()) as ClassroomsIndexFile;
+  return (file.classrooms ?? []).map((c) => c.short_name).filter(Boolean);
+}
+
 // TODO: Is this ok??
 export const AUTOGRADE_SHIM_URL =
   'https://raw.githubusercontent.com/foundation50/classroom50/main/cli/gh-student/embed/autograde-shim.yaml';

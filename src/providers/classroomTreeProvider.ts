@@ -2,12 +2,10 @@ import * as vscode from 'vscode';
 import { getGitHubSession } from '../auth/authProvider';
 import {
   getUser,
-  listClassroomsFromConfigRepo,
-  discoverClassroomsFromRepos,
   findAcceptedRepoUrl,
   getLatestReleaseNotes,
 } from '../api/classroomApi';
-import { fetchAssignments } from '../api/pagesApi';
+import { fetchAssignments, fetchClassroomsFromPages } from '../api/pagesApi';
 import { AssignmentEntry, AssignmentInfo } from '../types';
 
 export class OrgItem extends vscode.TreeItem {
@@ -152,19 +150,16 @@ export class ClassroomTreeProvider
     token: string,
     org: string
   ): Promise<ClassroomTreeItem[]> {
-    // Stored classrooms (manually added or previously discovered)
+    // Stored classrooms: both manually added or previously discovered
     const storeKey = `classrooms:${org}`;
     const stored: string[] =
       this.context.globalState.get<string[]>(storeKey) ?? [];
 
     let discovered: string[] = [];
     try {
-      const user = await getUser(token);
-      const fromConfigRepo = await listClassroomsFromConfigRepo(token, org);
-      const fromRepos = await discoverClassroomsFromRepos(token, org, user.login);
-      discovered = [...new Set([...fromConfigRepo, ...fromRepos])];
+      discovered = await fetchClassroomsFromPages(org);
     } catch {
-      // Discovery is best-effort; stored classrooms still render fine
+      new MessageItem('Cannot fetch classrooms.');
     }
 
     const combined = [...new Set([...stored, ...discovered])];
