@@ -32,8 +32,10 @@ export async function listUserReposInOrg(
   );
 }
 
- // Not in use either
- // Return true when the org has a classroom50 config repo. Note! works only with public repos
+// Not in use either
+// Return true when the org has a classroom50 config repo. Note! works only with public repos
+// We can use Github pages to get classrooms: https://hh-courses.github.io/classroom50/classrooms-index.json
+// {"classrooms": [{"schema": "classroom50/classroom/v1", "name": "", "short_name": "devops", "term": "", "org": "hh-courses"}]}
 export async function hasClassroomConfigRepo(
   token: string,
   org: string
