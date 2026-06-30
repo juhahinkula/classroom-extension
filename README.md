@@ -1,5 +1,7 @@
 # Classroom50 Student extension
 
+Classroom 50 is an open-source GitHub Classroom alternative developed by the Fifty Foundation.
+
 ## Features
 - **GitHub Authentication**: GitHub login integration for accessing your classroom data
 - **Manage Organizations**: Add and manage GitHub organizations at the top level to access your classrooms
@@ -8,11 +10,63 @@
 - **Accept Assignments**: Accept assignments directly from VS Code with one click
 - **Clone Assignments**: Clone assignment repositories with Git URLs
 
-## Requirements
+## Prerequisites
 
 - **GitHub Account**: You need a GitHub account with access to GitHub Classroom
 - **Organization Membership**: You must be a member of the organization where your classrooms are located
 - **Teacher Setup**: Your teacher must have added you as a member of the GitHub organization to access the classrooms and assignments within it
+
+## Getting started
+
+1. Install this extension and reload VS Code
+2. Click on the Classroom50 tab in the activity bar
+3. Click the **Sign in to Github** and complete the sign process, using your GitHub account. 
+
+![Github sign-in](images/signin.png)
+
+## Organizations
+
+Classroom50 uses GitHub organizations for classes. You must be a member of the organization you want to use.
+
+Press **Add organization...** to open the list of organizations you belong to, then select one from the list.
+
+![Organizations](images/add-organization.png)
+
+## Classrooms
+
+After you select an organization, you can view all classrooms within it. An organization can contain multiple classrooms.
+
+![Classrooms](images/classrooms.png)
+
+## Assignments
+
+Open the classroom in the tree view to see the list of assignments.
+
+![Assignments](images/assignments.png)
+
+###  Accept assignment
+
+The ***not accepted*** status means you must accept the assignment before you can work on it.
+
+Click the assignment in the tree view to open it in its own view.
+
+Press the **Accept Assignment** button to accept the assignment.
+
+![Accept assignment](images/accept-assignment.png)
+
+After you accept the assignment, its status changes to ***accepted***. You can copy your repository link from the assignment view by pressing the **Copy** button. Clone the repository and start working on it.
+
+![Accepted assignment](images/accepted.png)
+
+### Submitted assignment
+
+After you submit the assignment, its status changes to ***submitted***. You can view the autograding result, if available, in the assignment view.
+
+> [!NOTE]
+> Submission takes some time because Classroom50 uses GitHub workflows for autograding. Refresh the view after a few minutes to see the submission result.
+
+![Submitted assignment](images/submitted.png)
+
 
 ## Release Notes
 
