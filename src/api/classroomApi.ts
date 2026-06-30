@@ -11,6 +11,10 @@ export async function listUserOrgs(token: string): Promise<GitHubOrg[]> {
   return ghFetch<GitHubOrg[]>(token, 'user/orgs?per_page=100');
 }
 
+export async function listUserMemberOrgs(token: string): Promise<GitHubOrg[]> {
+  return ghFetch<GitHubOrg[]>(token, 'user/orgs?role=member&per_page=100');
+}
+
 export async function getOrg(token: string, org: string): Promise<GitHubOrg | null> {
   try {
     return await ghFetch<GitHubOrg>(token, `orgs/${encodeURIComponent(org)}`);
@@ -30,28 +34,6 @@ export async function listUserReposInOrg(
     token,
     `orgs/${encodeURIComponent(org)}/repos?type=member&per_page=100`
   );
-}
-
-// Not in use either
-// Return true when the org has a classroom50 config repo. Note! works only with public repos
-// We can use Github pages to get classrooms: https://hh-courses.github.io/classroom50/classrooms-index.json
-// {"classrooms": [{"schema": "classroom50/classroom/v1", "name": "", "short_name": "devops", "term": "", "org": "hh-courses"}]}
-export async function hasClassroomConfigRepo(
-  token: string,
-  org: string
-): Promise<boolean> {
-  try {
-    await ghFetch<RepoContentItem>(
-      token,
-      `repos/${encodeURIComponent(org)}/classroom50`
-    );
-    return true;
-  } catch (err) {
-    if (err instanceof GitHubError && err.status === 404) {
-      return false;
-    }
-    throw err;
-  }
 }
 
 type RepoContentItem = {

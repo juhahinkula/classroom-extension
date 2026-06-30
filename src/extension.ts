@@ -4,7 +4,7 @@ import { AssignmentPanel } from './webview/assignmentPanel';
 import { loginCommand, logoutCommand } from './commands/login';
 import { acceptAssignment } from './commands/accept';
 import { requireGitHubSession } from './auth/authProvider';
-import { getOrg, getOrgMembership, validateOrgAccess } from './api/classroomApi';
+import { getOrg, getOrgMembership, listUserMemberOrgs, validateOrgAccess } from './api/classroomApi';
 import { AssignmentInfo } from './types';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -30,18 +30,14 @@ export function activate(context: vscode.ExtensionContext) {
     // User can add a new organization. After that we check that user belongs to typed organization.
     // Note! This adds organization only to VS Code persistent state.
     vscode.commands.registerCommand('classroom50.addOrg', async () => {
-      const org = await vscode.window.showInputBox({
-        prompt: 'Enter the GitHub organization name',
-        placeHolder: 'e.g. cs50',
-        validateInput: (v) => (v.trim() ? undefined : 'Organization name cannot be empty'),
-      });
+      const session = await requireGitHubSession();
+      const org = await chooseOrg(session, 'Select your GitHub organization');
       if (!org) {
         return;
       }
 
       const trimmedOrg = org.trim();
       try {
-        const session = await requireGitHubSession();
         const orgInfo = await getOrg(session.accessToken, trimmedOrg);
         const membership = await getOrgMembership(session.accessToken, trimmedOrg);
         const validationError = validateOrgAccess(trimmedOrg, orgInfo, membership);
@@ -104,11 +100,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('classroom50.addClassroom', async (item?: OrgItem) => {
       let org = item?.org;
+      const session = await requireGitHubSession();
       if (!org) {
-        org = await vscode.window.showInputBox({
-          prompt: 'Enter the GitHub organization name',
-          placeHolder: 'e.g. cs50',
-        });
+        org = await chooseOrg(session, 'Select the GitHub organization for the classroom');
       }
       if (!org) {
         return;
@@ -116,7 +110,6 @@ export function activate(context: vscode.ExtensionContext) {
 
       const trimmedOrg = org.trim();
       try {
-        const session = await requireGitHubSession();
         const orgInfo = await getOrg(session.accessToken, trimmedOrg);
         const membership = await getOrgMembership(session.accessToken, trimmedOrg);
         const validationError = validateOrgAccess(trimmedOrg, orgInfo, membership);
@@ -205,6 +198,47 @@ export function activate(context: vscode.ExtensionContext) {
       }
     })
   );
+
+  async function chooseOrg(
+    session: { accessToken: string },
+    prompt: string
+  ): Promise<string | undefined> {
+    const orgs = await listUserMemberOrgs(session.accessToken);
+    const manualEntry: vscode.QuickPickItem & { manual: true } = {
+      label: 'Enter organization manually',
+      description: 'Type any GitHub organization name',
+      manual: true,
+    };
+
+    const items: Array<vscode.QuickPickItem & { org?: string; manual?: boolean }> = [
+      manualEntry,
+      ...orgs.map((org) => ({
+        label: org.login,
+        description: 'Organization membership',
+        org: org.login,
+      })),
+    ];
+
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: prompt,
+      matchOnDescription: true,
+      ignoreFocusOut: true,
+    });
+    if (!selected) {
+      return undefined;
+    }
+
+    if (selected.manual) {
+      const org = await vscode.window.showInputBox({
+        prompt,
+        placeHolder: 'e.g. cs50',
+        validateInput: (v) => (v.trim() ? undefined : 'Organization name cannot be empty'),
+      });
+      return org?.trim();
+    }
+
+    return selected.org;
+  }
 
   // ── Accept handler (shared by tree command + webview) ─────────────────────
 

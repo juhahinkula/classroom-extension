@@ -42,13 +42,18 @@ export class AssignmentItem extends vscode.TreeItem {
 
     this.assignmentInfo = info;
     this.contextValue = `assignment-${info.status}`;
-    this.description = info.status === 'accepted' ? '✓ accepted' : 'not accepted';
+    this.description =
+      info.status === 'submitted'
+        ? '✓ submitted'
+        : info.status === 'accepted'
+        ? '✓ accepted'
+        : 'not accepted';
     this.tooltip = `${info.org}/${info.classroom}/${info.entry.slug}\nTemplate: ${info.entry.template.owner}/${info.entry.template.repo}`;
 
     this.iconPath =
-      info.status === 'accepted'
-        ? new vscode.ThemeIcon('pass', new vscode.ThemeColor('testing.iconPassed'))
-        : new vscode.ThemeIcon('circle-outline');
+      info.status === 'pending'
+        ? new vscode.ThemeIcon('circle-outline')
+        : new vscode.ThemeIcon('pass', new vscode.ThemeColor('testing.iconPassed'));
 
     this.command = {
       command: 'classroom50.openDetail',
@@ -221,7 +226,7 @@ export class ClassroomTreeProvider
           entry,
           org,
           classroom,
-          status: repoUrl ? 'accepted' : 'pending',
+          status: repoUrl ? (releaseNotes ? 'submitted' : 'accepted') : 'pending',
           repoUrl,
           releaseNotes,
         };

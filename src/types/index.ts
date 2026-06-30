@@ -57,7 +57,7 @@ export type ClassroomInfo = {
   slug: string;
 };
 
-export type AssignmentStatus = 'pending' | 'accepted';
+export type AssignmentStatus = 'pending' | 'accepted' | 'submitted';
 
 export type AssignmentInfo = {
   entry: AssignmentEntry;

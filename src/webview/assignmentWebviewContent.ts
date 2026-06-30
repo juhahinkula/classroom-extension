@@ -8,14 +8,16 @@ export function getAssignmentWebviewContent(
 ): string {
   const { entry, org, classroom, status, repoUrl } = info;
   const { releaseNotes } = info;
-  const accepted = status === 'accepted';
+  const isAccepted = status === 'accepted' || status === 'submitted';
   const cloneCommand = repoUrl ? `git clone ${repoUrl.replace(/\/$/, '')}.git` : '';
 
-  const acceptButton = accepted
+  const acceptButton = isAccepted
     ? `<a class="btn btn-secondary" href="${repoUrl}" id="openBtn">Open Repository ↗</a>`
     : `<button class="btn btn-primary" id="acceptBtn">Accept Assignment</button>`;
 
-  const statusBadge = accepted
+  const statusBadge = status === 'submitted'
+    ? `<span class="badge badge-success">✓ Submitted</span>`
+    : isAccepted
     ? `<span class="badge badge-success">✓ Accepted</span>`
     : `<span class="badge badge-pending">Not yet accepted</span>`;
 
@@ -132,7 +134,7 @@ export function getAssignmentWebviewContent(
     <div class="value"><a href="${repoUrl}" id="repoLink">${escapeHtml(repoUrl.replace('https://github.com/', ''))}</a></div>
   </div>` : ''}
 
-  ${accepted && repoUrl ? `<div class="section">
+  ${isAccepted && repoUrl ? `<div class="section">
     <div class="label">Clone</div>
     <div class="clone-command">
       <code id="cloneCommand">${escapeHtml(cloneCommand)}</code>

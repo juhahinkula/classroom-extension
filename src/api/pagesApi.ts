@@ -3,6 +3,7 @@ import { AssignmentEntry, AssignmentsFile, ASSIGNMENTS_SCHEMA_V1 } from '../type
 const CONFIG_REPO = 'classroom50';
 const PAGES_FETCH_TIMEOUT_MS = 15_000;
 
+// The Github Pages url to get assignments: https://{org}.github.io/classroom50/front-end-programming/assignments.json
 export function pagesAssignmentsUrl(org: string, classroom: string): string {
   return `https://${org}.github.io/${CONFIG_REPO}/${classroom}/assignments.json`;
 }
