@@ -5,7 +5,7 @@ import {
   findAcceptedRepoUrl,
   getLatestReleaseNotes,
 } from '../api/classroomApi';
-import { fetchAssignments, fetchClassroomsFromPages } from '../api/pagesApi';
+import { fetchAssignments } from '../api/pagesApi';
 import { AssignmentEntry, AssignmentInfo } from '../types';
 
 export class OrgItem extends vscode.TreeItem {
@@ -155,33 +155,17 @@ export class ClassroomTreeProvider
     token: string,
     org: string
   ): Promise<ClassroomTreeItem[]> {
-    // Stored classrooms: both manually added or previously discovered
     const storeKey = `classrooms:${org}`;
-    const stored: string[] =
-      this.context.globalState.get<string[]>(storeKey) ?? [];
+    const stored = [...new Set((this.context.globalState.get<string[]>(storeKey) ?? []).map((entry) => entry.trim()).filter(Boolean))];
 
-    let discovered: string[] = [];
-    try {
-      discovered = await fetchClassroomsFromPages(org);
-    } catch {
-      new MessageItem('Cannot fetch classrooms.');
-    }
-
-    const combined = [...new Set([...stored, ...discovered])];
-
-    // Save discovered classrooms
-    if (discovered.length > 0) {
-      await this.context.globalState.update(storeKey, combined);
-    }
-
-    if (combined.length === 0) {
+    if (stored.length === 0) {
       return [
         new MessageItem('No classrooms found in this org', 'info'),
         new ActionItem('Add classroom…', 'classroom50.addClassroom', [new OrgItem(org)]),
       ];
     }
 
-    return combined.map((c) => new ClassroomItem(org, c));
+    return stored.map((c) => new ClassroomItem(org, c));
   }
 
   private async getAssignmentsForClassroom(
@@ -241,15 +225,18 @@ export class ClassroomTreeProvider
   async addClassroom(org: string, classroom: string): Promise<void> {
     const key = `classrooms:${org}`;
     const existing = this.context.globalState.get<string[]>(key) ?? [];
-    if (!existing.includes(classroom)) {
-      await this.context.globalState.update(key, [...existing, classroom]);
+    const trimmedClassroom = classroom.trim();
+    if (!existing.some((entry) => entry.trim().toLowerCase() === trimmedClassroom.toLowerCase())) {
+      await this.context.globalState.update(key, [...existing, trimmedClassroom]);
     }
   }
 
   async removeClassroom(org: string, classroom: string): Promise<void> {
     const key = `classrooms:${org}`;
     const existing = this.context.globalState.get<string[]>(key) ?? [];
-    const remaining = existing.filter((entry) => entry.trim().toLowerCase() !== classroom.trim().toLowerCase());
+    const remaining = existing.filter(
+      (entry) => entry.trim().toLowerCase() !== classroom.trim().toLowerCase()
+    );
     await this.context.globalState.update(key, remaining.length > 0 ? remaining : undefined);
   }
 }

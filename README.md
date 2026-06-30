@@ -36,6 +36,8 @@ Press **Add organization...** to open the list of organizations you belong to, t
 
 After you select an organization, you can view all classrooms within it. An organization can contain multiple classrooms.
 
+Use **Add classroom...** to open the classroom list for that organization and select one or more classrooms to add.
+
 ![Classrooms](images/classrooms.png)
 
 ## Assignments
