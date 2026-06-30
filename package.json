@@ -2,7 +2,7 @@
   "name": "classroom-extension",
   "displayName": "Classroom50",
   "description": "Classroom50 student extension - browse classrooms, accept assignments.",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -11,6 +11,10 @@
   "homepage": "https://github.com/juhahinkula/classroom-extension",
   "bugs": {
     "url": "https://github.com/juhahinkula/classroom-extension/issues"
+  },
+  "vsce": {
+    "baseContentUrl": "https://github.com/juhahinkula/classroom-extension/blob/main",
+    "baseImagesUrl": "https://raw.githubusercontent.com/juhahinkula/classroom-extension/main"
   },
   "engines": {
     "vscode": "^1.120.0"
