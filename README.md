@@ -74,6 +74,6 @@ After you submit the assignment, its status changes to ***submitted***. You can 
 
 Users appreciate release notes as you update your extension.
 
-### 0.0.3
+### 0.0.5
 
 Initial release

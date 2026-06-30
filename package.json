@@ -2,7 +2,7 @@
   "name": "classroom-extension",
   "displayName": "Classroom50",
   "description": "Classroom50 student extension - browse classrooms, accept assignments.",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "license": "MIT",
   "engines": {
     "vscode": "^1.120.0"
