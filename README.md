@@ -72,6 +72,6 @@ After you submit the assignment, its status changes to ***submitted***. You can 
 
 ## Release Notes
 
-### 0.0.5
+### 0.0.6
 
 Initial release
