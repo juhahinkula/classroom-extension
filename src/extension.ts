@@ -5,6 +5,7 @@ import { loginCommand, logoutCommand } from './commands/login';
 import { acceptAssignment } from './commands/accept';
 import { requireGitHubSession } from './auth/authProvider';
 import { getOrg, getOrgMembership, listUserMemberOrgs, validateOrgAccess } from './api/classroomApi';
+import { fetchClassroomsFromPages } from './api/pagesApi';
 import { AssignmentInfo } from './types';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -124,6 +125,32 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
+      const classrooms = await fetchClassroomsFromPages(trimmedOrg);
+
+      if (classrooms.length > 0) {
+        const selected = await vscode.window.showQuickPick(
+          classrooms.map((classroom) => ({
+            label: classroom,
+            picked: false,
+          })),
+          {
+            canPickMany: true,
+            placeHolder: `Select classrooms to add from "${trimmedOrg}"`,
+            ignoreFocusOut: true,
+          }
+        );
+
+        if (!selected || selected.length === 0) {
+          return;
+        }
+
+        for (const classroom of selected) {
+          await treeProvider.addClassroom(trimmedOrg, classroom.label.trim());
+        }
+        treeProvider.refresh();
+        return;
+      }
+
       const classroom = await vscode.window.showInputBox({
         prompt: `Enter the classroom slug for org "${org}"`,
         placeHolder: 'e.g. cs50-fall-2026',
@@ -132,6 +159,7 @@ export function activate(context: vscode.ExtensionContext) {
       if (!classroom) {
         return;
       }
+
       await treeProvider.addClassroom(trimmedOrg, classroom.trim());
       treeProvider.refresh();
     }),

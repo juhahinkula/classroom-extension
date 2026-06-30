@@ -9,7 +9,10 @@ export function pagesAssignmentsUrl(org: string, classroom: string): string {
 }
 
 type ClassroomsIndexFile = {
-  classrooms: { short_name: string }[];
+  classrooms: {
+    short_name: string;
+    active?: boolean;
+  }[];
 };
 
 // Fetch classrooms from Github pages
@@ -32,7 +35,10 @@ export async function fetchClassroomsFromPages(org: string): Promise<string[]> {
   }
 
   const file = (await response.json()) as ClassroomsIndexFile;
-  return (file.classrooms ?? []).map((c) => c.short_name).filter(Boolean);
+  return (file.classrooms ?? [])
+    .filter((classroom) => classroom.active !== false)
+    .map((classroom) => classroom.short_name)
+    .filter(Boolean);
 }
 
 // TODO: Is this ok??
