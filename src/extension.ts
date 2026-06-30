@@ -5,7 +5,6 @@ import { loginCommand, logoutCommand } from './commands/login';
 import { acceptAssignment } from './commands/accept';
 import { requireGitHubSession } from './auth/authProvider';
 import { getOrg, getOrgMembership, listUserMemberOrgs, validateOrgAccess } from './api/classroomApi';
-import { fetchClassroomsFromPages } from './api/pagesApi';
 import { AssignmentInfo } from './types';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -125,28 +124,15 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
-      const classrooms = await fetchClassroomsFromPages(trimmedOrg).catch(() => []);
-      if (classrooms.length === 0) {
-        vscode.window.showInformationMessage(`No classrooms found for organization "${trimmedOrg}".`);
+      const classroom = await vscode.window.showInputBox({
+        prompt: `Enter the classroom slug for org "${org}"`,
+        placeHolder: 'e.g. cs50-fall-2026',
+        validateInput: (v) => (v.trim() ? undefined : 'Classroom name cannot be empty'),
+      });
+      if (!classroom) {
         return;
       }
-
-      const selected = await vscode.window.showQuickPick(
-        classrooms.map((classroom) => ({ label: classroom })),
-        {
-          placeHolder: `Select one or more classrooms from "${trimmedOrg}"`,
-          canPickMany: true,
-          matchOnDescription: true,
-          ignoreFocusOut: true,
-        }
-      );
-      if (!selected || selected.length === 0) {
-        return;
-      }
-
-      await Promise.all(
-        selected.map((choice) => treeProvider.addClassroom(trimmedOrg, choice.label))
-      );
+      await treeProvider.addClassroom(trimmedOrg, classroom.trim());
       treeProvider.refresh();
     }),
 
@@ -187,6 +173,7 @@ export function activate(context: vscode.ExtensionContext) {
       await treeProvider.removeClassroom(trimmedOrg, trimmedClassroom);
       treeProvider.refresh();
     }),
+
     vscode.commands.registerCommand('classroom50.openDetail', (item: AssignmentItem) => {
       AssignmentPanel.open(item.assignmentInfo, handleAccept);
     }),
@@ -199,6 +186,15 @@ export function activate(context: vscode.ExtensionContext) {
       const url = item.assignmentInfo.repoUrl;
       if (url) {
         vscode.env.openExternal(vscode.Uri.parse(url));
+      }
+    })
+  );
+
+  // Refresh tree when auth state changes
+  context.subscriptions.push(
+    vscode.authentication.onDidChangeSessions((e) => {
+      if (e.provider.id === 'github') {
+        treeProvider.refresh();
       }
     })
   );
@@ -219,7 +215,7 @@ export function activate(context: vscode.ExtensionContext) {
       ...orgs.map((org) => ({
         label: org.login,
         description: 'Organization membership',
-        org: org.login,
+        org: org.login, 
       })),
     ];
 

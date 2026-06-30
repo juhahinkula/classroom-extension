@@ -65,7 +65,7 @@ After you accept the assignment, its status changes to ***accepted***. You can c
 After you submit the assignment, its status changes to ***submitted***. You can view the autograding result, if available, in the assignment view.
 
 > [!NOTE]
-> Submission takes some time because Classroom50 uses GitHub workflows for autograding. Refresh the view after a few minutes to see the submission result.
+> Submission takes some time because Classroom50 uses GitHub workflows for autograding. Refresh the view after a few minutes to see the submission result. You can use Refresh from the ... menu.
 
 ![Submitted assignment](images/submitted.png)
 

@@ -92,7 +92,7 @@
         {
           "command": "classroom50.refresh",
           "when": "view == classroom50",
-          "group": "navigation"
+          "group": "navigation@-1"
         },
         {
           "command": "classroom50.addOrg",
