@@ -12,7 +12,7 @@ Classroom 50 is an open-source GitHub Classroom alternative developed by the Fif
 
 ## Prerequisites
 
-- **GitHub Account**: You need a GitHub account with access to GitHub Classroom
+- **GitHub Account**: You need a GitHub account
 - **Organization Membership**: You must be a member of the organization where your classrooms are located
 - **Teacher Setup**: Your teacher must have added you as a member of the GitHub organization to access the classrooms and assignments within it
 
@@ -71,8 +71,6 @@ After you submit the assignment, its status changes to ***submitted***. You can 
 
 
 ## Release Notes
-
-Users appreciate release notes as you update your extension.
 
 ### 0.0.5
 
