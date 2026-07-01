@@ -66,7 +66,7 @@ In accepted assignments, these buttons are available:
 
 - **Open Repository ↗**: Opens your assignment repository on GitHub in the browser.
 - **Copy**: Copies the full clone command (`git clone <repo-url>.git`) to your clipboard.
-- **Clone & Open**: Starts cloning that assignment repository in VS Code.
+- **Clone & Open**: Opens a folder selection prompt in VS Code, then clones that assignment repository into the selected location.
 
 ![Accepted assignment](images/clone.png)
 
