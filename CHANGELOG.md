@@ -4,6 +4,6 @@ All notable changes to the "classroom-extension" extension will be documented in
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [0.0.6]
+## version 0.0.7
 
 - Initial release
