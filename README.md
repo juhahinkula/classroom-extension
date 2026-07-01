@@ -56,9 +56,15 @@ Press the **Accept Assignment** button to accept the assignment.
 
 ![Accept assignment](images/accept-assignment.png)
 
-After you accept the assignment, its status changes to ***accepted***. You can copy your repository link from the assignment view by pressing the **Copy** button. Clone the repository and start working on it.
+After you accept the assignment, its status changes to ***accepted***. 
 
-![Accepted assignment](images/accepted.png)
+In accepted assignments, these buttons are available:
+
+- **Open Repository ↗**: Opens your assignment repository on GitHub in the browser.
+- **Copy**: Copies the full clone command (`git clone <repo-url>.git`) to your clipboard.
+- **Clone & Open**: Starts cloning that assignment repository in VS Code.
+
+![Accepted assignment](images/clone.png)
 
 ### Submitted assignment
 

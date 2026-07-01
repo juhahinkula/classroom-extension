@@ -6,7 +6,8 @@ import { getAssignmentWebviewContent } from './assignmentWebviewContent';
 type WebviewMessage =
   | { type: 'accept' }
   | { type: 'openExternal'; url: string }
-  | { type: 'copyCloneCommand'; command: string };
+  | { type: 'copyCloneCommand'; command: string }
+  | { type: 'cloneAndOpen' };
 
 export class AssignmentPanel {
   private static readonly viewType = 'classroom50.assignment';
@@ -96,6 +97,23 @@ export class AssignmentPanel {
         await vscode.env.clipboard.writeText(msg.command);
         await vscode.window.showInformationMessage('Clone command copied to clipboard');
         break;
+      case 'cloneAndOpen': {
+        const repoUrl = this.info.repoUrl;
+        if (!repoUrl) {
+          await vscode.window.showErrorMessage('Repository URL is not available for this assignment');
+          break;
+        }
+
+        const cloneUrl = `${repoUrl.replace(/\/$/, '')}.git`;
+
+        try {
+          await vscode.commands.executeCommand('git.clone', cloneUrl);
+        } catch {
+          // Fallback for VS Code/Git extension versions with different clone argument handling.
+          await vscode.commands.executeCommand('git.clone', cloneUrl);
+        }
+        break;
+      }
     }
   }
 
