@@ -2,6 +2,8 @@
 
 Classroom 50 is an open-source GitHub Classroom alternative developed by the Fifty Foundation.
 
+This extension is designed for students using Classroom50 courses.
+
 ## Features
 - **GitHub Authentication**: GitHub login integration for accessing your classroom data
 - **Manage Organizations**: Add and manage GitHub organizations at the top level to access your classrooms
@@ -56,6 +58,8 @@ Press the **Accept Assignment** button to accept the assignment.
 
 ![Accept assignment](images/accept-assignment.png)
 
+### Accepted assignment
+
 After you accept the assignment, its status changes to ***accepted***. 
 
 In accepted assignments, these buttons are available:
@@ -66,6 +70,8 @@ In accepted assignments, these buttons are available:
 
 ![Accepted assignment](images/clone.png)
 
+This extension does not provide a separate submit action. Submitting is done with standard Git commands: commit and push.
+
 ### Submitted assignment
 
 After you submit the assignment, its status changes to ***submitted***. You can view the autograding result, if available, in the assignment view.
@@ -75,9 +81,3 @@ After you submit the assignment, its status changes to ***submitted***. You can 
 
 ![Submitted assignment](images/submitted.png)
 
-
-## Release Notes
-
-### 0.0.6
-
-Initial release
