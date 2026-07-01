@@ -81,3 +81,5 @@ After you submit the assignment, its status changes to ***submitted***. You can 
 
 ![Submitted assignment](images/submitted.png)
 
+---
+Extension icon by [Icons8.com](https://www.icons8.com)
