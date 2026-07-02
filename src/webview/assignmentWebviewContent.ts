@@ -118,6 +118,31 @@ export function getAssignmentWebviewContent(
       max-height: 360px;
       overflow: auto;
     }
+    .info-box {
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--btn-bg);
+      border-radius: 6px;
+      background: var(--vscode-textCodeBlock-background);
+      padding: 12px;
+    }
+    .info-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .info-list {
+      margin-left: 18px;
+      line-height: 1.5;
+    }
+    .info-list code {
+      background: var(--vscode-textCodeBlock-background);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+    .info-note {
+      margin-top: 10px;
+      color: var(--vscode-descriptionForeground);
+    }
   </style>
 </head>
 <body>
@@ -146,6 +171,16 @@ export function getAssignmentWebviewContent(
       <button class="btn btn-tertiary" id="copyCloneBtn">Copy</button>
       <button class="btn btn-clone-open" id="cloneOpenBtn">Clone & Open</button>
     </div>
+  </div>` : ''}
+
+  ${status === 'accepted' ? `<div class="section info-box">
+    <div class="info-title">How to submit</div>
+    <ol class="info-list">
+      <li>Make your code changes locally.</li>
+      <li>Commit your work: <code>git commit -m "Your message"</code></li>
+      <li>Push to GitHub: <code>git push</code></li>
+    </ol>
+    <p class="info-note">After push, status may take a while to change to Submitted because Classroom50 uses GitHub workflows for grading.</p>
   </div>` : ''}
 
   ${repoUrl && releaseNotes ? `<div class="section release-notes">
