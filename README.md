@@ -68,7 +68,7 @@ In accepted assignments, these buttons are available:
 - **Copy**: Copies the full clone command (`git clone <repo-url>.git`) to your clipboard.
 - **Clone & Open**: Opens a folder selection prompt in VS Code, then clones that assignment repository into the selected location.
 
-![Accepted assignment](images/clone.png)
+![Accepted assignment](images/accepted.png)
 
 This extension does not provide a separate submit action. Submitting is done with standard Git commands: commit and push.
 
