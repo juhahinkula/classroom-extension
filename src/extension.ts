@@ -10,6 +10,7 @@ import { AssignmentInfo } from './types';
 
 export function activate(context: vscode.ExtensionContext) {
   const treeProvider = new ClassroomTreeProvider(context);
+  let autoRefreshTimer: ReturnType<typeof setInterval> | undefined;
 
   // Register the tree view
   const treeView = vscode.window.createTreeView('classroom50', {
@@ -17,6 +18,40 @@ export function activate(context: vscode.ExtensionContext) {
     showCollapseAll: true,
   });
   context.subscriptions.push(treeView);
+
+  const restartAutoRefreshTimer = () => {
+    if (autoRefreshTimer) {
+      clearInterval(autoRefreshTimer);
+      autoRefreshTimer = undefined;
+    }
+
+    const intervalMinutes = vscode.workspace
+      .getConfiguration('classroom50')
+      .get<number>('refreshIntervalMinutes', 0);
+    if (intervalMinutes <= 0) {
+      return;
+    }
+
+    autoRefreshTimer = setInterval(() => {
+      treeProvider.refresh();
+    }, intervalMinutes * 60 * 1000);
+  };
+
+  restartAutoRefreshTimer();
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('classroom50.refreshIntervalMinutes')) {
+        restartAutoRefreshTimer();
+      }
+    }),
+    new vscode.Disposable(() => {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = undefined;
+      }
+    })
+  );
 
   // ── Commands ──────────────────────────────────────────────────────────────
 

@@ -77,9 +77,21 @@ This extension does not provide a separate submit action. Submitting is done wit
 After you submit the assignment, its status changes to ***submitted***. You can view the autograding result, if available, in the assignment view.
 
 > [!NOTE]
-> Submission takes some time because Classroom50 uses GitHub workflows for autograding. Refresh the view after a few minutes to see the submission result. You can use Refresh from the ... menu.
+> Submission takes some time because Classroom50 uses GitHub workflows for autograding. Refresh the view after a few minutes to see the submission result. You can use Refresh from the ... menu. You can also set automatic refresh in the extension settings.
 
 ![Submitted assignment](images/submitted.png)
+
+## Extension Settings
+
+- **classroom50.refreshIntervalMinutes**: Automatic refresh interval for the tree view. Default is `0` (Off).
+
+How to change settings:
+
+1. Open **Settings** --> **Extensions**.
+2. Search for **Classroom50**.
+3. Set **Refresh Interval Minutes** to one of: 0 (=Off), 1, 5, 10, 15, 30, or 60.
+
+![Settings](images/settings.png)
 
 ---
 Extension icon by [Icons8.com](https://www.icons8.com)
