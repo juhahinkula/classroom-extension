@@ -5,8 +5,15 @@ import {
   findAcceptedRepoUrl,
   getLatestReleaseNotes,
 } from '../api/classroomApi';
-import { fetchAssignments } from '../api/pagesApi';
+import { fetchAssignments, isValidAccessKey } from '../api/pagesApi';
 import { AssignmentEntry, AssignmentInfo } from '../types';
+
+function isPagesNotFoundError(err: unknown): boolean {
+  if (!(err instanceof Error)) {
+    return false;
+  }
+  return err.message.includes('returned 404');
+}
 
 export class OrgItem extends vscode.TreeItem {
   readonly kind = 'org' as const;
@@ -173,12 +180,34 @@ export class ClassroomTreeProvider
     org: string,
     classroom: string
   ): Promise<ClassroomTreeItem[]> {
+    const accessKeyStorageKey = this.classroomAccessKeyStoreKey(org, classroom);
+    const savedAccessKey = this.context.globalState.get<string>(accessKeyStorageKey);
+
     let entries: AssignmentEntry[];
     try {
-      entries = await fetchAssignments(org, classroom);
+      entries = await fetchAssignments(org, classroom, savedAccessKey);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return [new MessageItem(`Error: ${msg}`, 'error')];
+      if (isPagesNotFoundError(err)) {
+        const accessKey = await this.promptForAccessKey(org, classroom);
+        if (!accessKey) {
+          return [new MessageItem('Classroom is unlisted. Enter the classroom key to view assignments.', 'key')];
+        }
+
+        try {
+          entries = await fetchAssignments(org, classroom, accessKey);
+          await this.context.globalState.update(accessKeyStorageKey, accessKey);
+        } catch {
+          return [
+            new MessageItem(
+              'Classroom is unlisted and the key was rejected. Re-open the classroom and try again.',
+              'error'
+            ),
+          ];
+        }
+      } else {
+        const msg = err instanceof Error ? err.message : String(err);
+        return [new MessageItem(`Error: ${msg}`, 'error')];
+      }
     }
 
     if (entries.length === 0) {
@@ -219,6 +248,30 @@ export class ClassroomTreeProvider
     );
 
     return items;
+  }
+
+  private classroomAccessKeyStoreKey(org: string, classroom: string): string {
+    return `classroom-access-key:${org.toLowerCase()}/${classroom.toLowerCase()}`;
+  }
+
+  private async promptForAccessKey(org: string, classroom: string): Promise<string | undefined> {
+    const key = await vscode.window.showInputBox({
+      title: 'Classroom Access Key Required',
+      prompt: `The classroom ${org}/${classroom} is unlisted. Paste the key from your invitation link (?k=...).`,
+      placeHolder: 'Example from invite URL: ?k=abc123xy',
+      ignoreFocusOut: true,
+      validateInput: (value) => {
+        if (!value.trim()) {
+          return 'Access key is required.';
+        }
+        if (!isValidAccessKey(value.trim())) {
+          return 'Access key must be 4-64 lowercase letters or digits.';
+        }
+        return undefined;
+      },
+    });
+
+    return key?.trim();
   }
 
   // Save a classroom slug under an org so it persists across reloads

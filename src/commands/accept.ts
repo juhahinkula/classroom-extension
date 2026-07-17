@@ -17,13 +17,47 @@ import {
   commitFiles,
   renderClassroomMetadata,
 } from '../api/classroomApi';
-import { fetchAssignments, fetchAutogradeShim } from '../api/pagesApi';
+import { fetchAssignments, fetchAutogradeShim, isValidAccessKey } from '../api/pagesApi';
 import { AssignmentInfo, ClassroomConfig } from '../types';
 
 const CLASSROOM_METADATA_PATH = '.classroom50.yaml';
 const AUTOGRADE_WORKFLOW_PATH = '.github/workflows/autograde.yaml';
 
-export async function acceptAssignment(info: AssignmentInfo): Promise<string | undefined> {
+function isPagesNotFoundError(err: unknown): boolean {
+  if (!(err instanceof Error)) {
+    return false;
+  }
+  return err.message.includes('returned 404');
+}
+
+async function promptForAccessKey(org: string, classroom: string): Promise<string | undefined> {
+  const key = await vscode.window.showInputBox({
+    title: 'Classroom Access Key Required',
+    prompt: `The classroom ${org}/${classroom} may be protected. Paste the access key from your invitation link (?k=...).`,
+    placeHolder: 'Example from invite URL: ?k=abc123xy',
+    ignoreFocusOut: true,
+    validateInput: (value) => {
+      if (!value.trim()) {
+        return 'Access key is required.';
+      }
+      if (!isValidAccessKey(value.trim())) {
+        return 'Access key must be 4-64 lowercase letters or digits.';
+      }
+      return undefined;
+    },
+  });
+
+  return key?.trim();
+}
+
+function classroomAccessKeyStoreKey(org: string, classroom: string): string {
+  return `classroom-access-key:${org.toLowerCase()}/${classroom.toLowerCase()}`;
+}
+
+export async function acceptAssignment(
+  info: AssignmentInfo,
+  state: vscode.Memento
+): Promise<string | undefined> {
   const { entry, org, classroom } = info;
 
   return vscode.window.withProgress(
@@ -56,7 +90,32 @@ export async function acceptAssignment(info: AssignmentInfo): Promise<string | u
 
       // fetch assignments.json and confirm the slug exists
       progress.report({ message: 'Looking up assignment…', increment: 10 });
-      const assignments = await fetchAssignments(org, classroom);
+      const accessKeyStorageKey = classroomAccessKeyStoreKey(org, classroom);
+      const savedAccessKey = state.get<string>(accessKeyStorageKey);
+      let assignments;
+      try {
+        assignments = await fetchAssignments(org, classroom, savedAccessKey);
+      } catch (err) {
+        if (!isPagesNotFoundError(err)) {
+          throw err;
+        }
+
+        const accessKey = await promptForAccessKey(org, classroom);
+        if (!accessKey) {
+          return undefined;
+        }
+
+        progress.report({ message: 'Retrying with classroom access key…', increment: 5 });
+        try {
+          assignments = await fetchAssignments(org, classroom, accessKey);
+          await state.update(accessKeyStorageKey, accessKey);
+        } catch {
+          throw new Error(
+            `Could not access ${org}/${classroom} with that access key. Re-open your invitation link and copy the value after ?k=.`
+          );
+        }
+      }
+
       const matched = assignments.find((a) => a.slug === entry.slug);
       if (!matched) {
         throw new Error(

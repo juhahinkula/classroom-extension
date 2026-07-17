@@ -2,10 +2,26 @@ import { AssignmentEntry, AssignmentsFile, ASSIGNMENTS_SCHEMA_V1 } from '../type
 
 const CONFIG_REPO = 'classroom50';
 const PAGES_FETCH_TIMEOUT_MS = 15_000;
+const ACCESS_KEY_PATTERN = /^[a-z0-9]{4,64}$/;
+
+function classroomPagesSegment(classroom: string, accessKey?: string): string {
+  return accessKey
+    ? `${classroom}/${encodeURIComponent(accessKey)}`
+    : classroom;
+}
+
+export function isValidAccessKey(value: string): boolean {
+  return ACCESS_KEY_PATTERN.test(value);
+}
 
 // The Github Pages url to get assignments: https://{org}.github.io/classroom50/front-end-programming/assignments.json
-export function pagesAssignmentsUrl(org: string, classroom: string): string {
-  return `https://${org}.github.io/${CONFIG_REPO}/${classroom}/assignments.json`;
+// Key is added for unlisted classrooms
+export function pagesAssignmentsUrl(
+  org: string,
+  classroom: string,
+  accessKey?: string
+): string {
+  return `https://${org}.github.io/${CONFIG_REPO}/${classroomPagesSegment(classroom, accessKey)}/assignments.json`;
 }
 
 type ClassroomsIndexFile = {
@@ -49,9 +65,10 @@ export const SHIM_ORG_PLACEHOLDER = '{{ORG}}';
 
 export async function fetchAssignments(
   org: string,
-  classroom: string
+  classroom: string,
+  accessKey?: string
 ): Promise<AssignmentEntry[]> {
-  const url = pagesAssignmentsUrl(org, classroom);
+  const url = pagesAssignmentsUrl(org, classroom, accessKey);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGES_FETCH_TIMEOUT_MS);
 

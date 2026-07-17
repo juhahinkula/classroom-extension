@@ -307,7 +307,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   async function handleAccept(info: AssignmentInfo): Promise<void> {
     try {
-      const repoUrl = await acceptAssignment(info);
+      const repoUrl = await acceptAssignment(info, context.globalState);
       if (repoUrl) {
         // Refresh tree so the assignment shows as accepted
         treeProvider.refresh();
