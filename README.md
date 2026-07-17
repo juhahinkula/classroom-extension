@@ -42,6 +42,43 @@ Use **Add classroom...** to open the classroom list for that organization and se
 
 ![Classrooms](images/select-classroom.png)
 
+### Unlisted classrooms
+
+Some classrooms are **unlisted**. In unlisted classrooms, assignment files are not available at the normal public URL.
+
+If this happens, the extension asks for a **Classroom Access Key** when you accept an assignment.
+
+How to get the key:
+1. Open the invitation link your teacher shared (LMS/email/chat).
+2. Find `?k=...` in the link.
+3. Copy the value after `?k=` and paste it into the prompt.
+
+Example invitation link:
+
+`https://<org>.github.io/classroom50/<classroom>/assignments/<assignment>/accept?k=abc123xy`
+
+In this example, the access key is `abc123xy`.
+
+### Removing organizations or classrooms
+
+You can remove items from the Classroom50 extension view when you no longer want to see them.
+
+How to remove an organization:
+1. Select the organization in the tree view.
+2. Click the trash bin icon (**Remove Organization**).
+3. Confirm the removal.
+
+How to remove a classroom:
+1. Select the classroom in the tree view.
+2. Click the trash bin icon (**Remove Classroom**).
+3. Confirm the removal.
+
+> **Important**
+> This removal is only local to VS Code.
+> It does **not** delete anything from GitHub.
+> Organizations, classrooms, repositories, and assignments remain unchanged on GitHub.
+
+
 ## Assignments
 
 Open the classroom in the tree view to see the list of assignments.
@@ -76,7 +113,7 @@ This extension does not provide a separate submit action. Submitting is done wit
 
 After you submit the assignment, its status changes to ***submitted***. You can view the autograding result, if available, in the assignment view.
 
-> [!NOTE]
+> **Note**
 > Submission takes some time because Classroom50 uses GitHub workflows for autograding. Refresh the view after a few minutes to see the submission result. You can use Refresh from the ... menu. You can also set automatic refresh in the extension settings.
 
 ![Submitted assignment](images/submitted.png)
