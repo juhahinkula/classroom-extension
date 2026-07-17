@@ -11,13 +11,14 @@ import {
   acceptOrgInvite,
   assignmentRepoName,
   createRepoFromTemplate,
+  getRepoDefaultBranch,
   patchRepo,
   addCollaborator,
   waitForStableBranch,
   commitFiles,
   renderClassroomMetadata,
 } from '../api/classroomApi';
-import { fetchAssignments, fetchAutogradeShim, isValidAccessKey } from '../api/pagesApi';
+import { fetchAssignments, isValidAccessKey, resolveAutogradeWorkflow } from '../api/pagesApi';
 import { AssignmentInfo, ClassroomConfig } from '../types';
 
 const CLASSROOM_METADATA_PATH = '.classroom50.yaml';
@@ -92,9 +93,10 @@ export async function acceptAssignment(
       progress.report({ message: 'Looking up assignment…', increment: 10 });
       const accessKeyStorageKey = classroomAccessKeyStoreKey(org, classroom);
       const savedAccessKey = state.get<string>(accessKeyStorageKey);
+      let activeAccessKey = savedAccessKey;
       let assignments;
       try {
-        assignments = await fetchAssignments(org, classroom, savedAccessKey);
+        assignments = await fetchAssignments(org, classroom, activeAccessKey);
       } catch (err) {
         if (!isPagesNotFoundError(err)) {
           throw err;
@@ -108,6 +110,7 @@ export async function acceptAssignment(
         progress.report({ message: 'Retrying with classroom access key…', increment: 5 });
         try {
           assignments = await fetchAssignments(org, classroom, accessKey);
+          activeAccessKey = accessKey;
           await state.update(accessKeyStorageKey, accessKey);
         } catch {
           throw new Error(
@@ -131,10 +134,6 @@ export async function acceptAssignment(
           `Assignment "${entry.slug}" has an incomplete template ref. Contact your teacher.`
         );
       }
-
-      // fetch autograde shim
-      progress.report({ message: 'Fetching autograde workflow shim…', increment: 10 });
-      const shim = await fetchAutogradeShim(org);
 
       // create private repo from template
       const repoName = assignmentRepoName(classroom, entry.slug, login);
@@ -170,8 +169,25 @@ export async function acceptAssignment(
       progress.report({ message: 'Adding you as collaborator…', increment: 10 });
       await addCollaborator(token, org, repoName, login, 'maintain');
 
+      // Resolve the branch after repo creation so default shim trigger matches
+      // the assignment repo's real default branch.
+      const targetBranch = repo.default_branch || tmpl.branch;
+      const configBranch =
+        (await getRepoDefaultBranch(token, org, 'classroom50').catch(() => undefined)) ||
+        targetBranch;
+
+      progress.report({ message: 'Resolving autograde workflow…', increment: 10 });
+      const shim = await resolveAutogradeWorkflow(
+        org,
+        classroom,
+        matched.autograder,
+        activeAccessKey,
+        targetBranch,
+        configBranch
+      );
+
       progress.report({ message: 'Waiting for repository to initialise…', increment: 10 });
-      await waitForStableBranch(token, org, repoName, tmpl.branch);
+      await waitForStableBranch(token, org, repoName, targetBranch);
 
       progress.report({ message: 'Writing classroom metadata and autograde workflow…', increment: 10 });
       const cfg: ClassroomConfig = {
@@ -183,7 +199,7 @@ export async function acceptAssignment(
         token,
         org,
         repoName,
-        tmpl.branch,
+        targetBranch,
         'Initialize .classroom50.yaml and autograde workflow (classroom50 extension)',
         {
           [CLASSROOM_METADATA_PATH]: renderClassroomMetadata(cfg),

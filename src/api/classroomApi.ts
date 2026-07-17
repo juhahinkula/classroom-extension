@@ -185,6 +185,29 @@ export type GeneratedRepo = {
   default_branch: string;
 };
 
+type RepoInfo = {
+  default_branch?: string;
+};
+
+export async function getRepoDefaultBranch(
+  token: string,
+  owner: string,
+  repo: string
+): Promise<string | undefined> {
+  try {
+    const info = await ghFetch<RepoInfo>(
+      token,
+      `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`
+    );
+    return info.default_branch;
+  } catch (err) {
+    if (err instanceof GitHubError && err.status === 404) {
+      return undefined;
+    }
+    throw err;
+  }
+}
+
 type ReleaseInfo = {
   name: string | null;
   tag_name: string;

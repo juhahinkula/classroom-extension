@@ -24,6 +24,15 @@ export function pagesAssignmentsUrl(
   return `https://${org}.github.io/${CONFIG_REPO}/${classroomPagesSegment(classroom, accessKey)}/assignments.json`;
 }
 
+export function pagesAutograderUrl(
+  org: string,
+  classroom: string,
+  autograderName: string,
+  accessKey?: string
+): string {
+  return `https://${org}.github.io/${CONFIG_REPO}/${classroomPagesSegment(classroom, accessKey)}/autograders/${encodeURIComponent(autograderName)}.yaml`;
+}
+
 type ClassroomsIndexFile = {
   classrooms: {
     short_name: string;
@@ -62,6 +71,8 @@ export const AUTOGRADE_SHIM_URL =
   'https://raw.githubusercontent.com/foundation50/classroom50/main/cli/gh-student/embed/autograde-shim.yaml';
 
 export const SHIM_ORG_PLACEHOLDER = '{{ORG}}';
+export const SHIM_BRANCH_PLACEHOLDER = '{{BRANCH}}';
+export const SHIM_CONFIG_BRANCH_PLACEHOLDER = '{{CONFIG_BRANCH}}';
 
 export async function fetchAssignments(
   org: string,
@@ -103,7 +114,11 @@ export async function fetchAssignments(
   return file.assignments ?? [];
 }
 
-export async function fetchAutogradeShim(org: string): Promise<string> {
+export async function fetchAutogradeShim(
+  org: string,
+  branch: string,
+  configBranch: string
+): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGES_FETCH_TIMEOUT_MS);
 
@@ -121,5 +136,67 @@ export async function fetchAutogradeShim(org: string): Promise<string> {
   }
 
   const content = await response.text();
-  return content.replaceAll(SHIM_ORG_PLACEHOLDER, org);
+  return content
+    .replaceAll(SHIM_ORG_PLACEHOLDER, org)
+    .replaceAll(SHIM_BRANCH_PLACEHOLDER, branch)
+    .replaceAll(SHIM_CONFIG_BRANCH_PLACEHOLDER, configBranch);
+}
+
+export async function fetchAutograderByName(
+  org: string,
+  classroom: string,
+  autograderName: string,
+  accessKey?: string
+): Promise<string> {
+  const url = pagesAutograderUrl(org, classroom, autograderName, accessKey);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PAGES_FETCH_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(url, { signal: controller.signal });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Could not reach ${url}: ${msg}`);
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (response.status === 404) {
+    throw new Error(
+      `Autograder "${autograderName}" is not published yet. Ask your instructor to verify autograders/${autograderName}.yaml and run publish-pages.`
+    );
+  }
+  if (!response.ok) {
+    throw new Error(`GET ${url}: unexpected status ${response.status}`);
+  }
+
+  const workflow = await response.text();
+  if (!workflow.trim()) {
+    throw new Error(
+      `Autograder "${autograderName}" is empty. Pages deployment may still be in flight. Retry in a minute.`
+    );
+  }
+  if (!workflow.includes('jobs:')) {
+    throw new Error(
+      `Autograder "${autograderName}" appears malformed YAML. Ask your instructor to verify the file.`
+    );
+  }
+
+  return workflow;
+}
+
+export async function resolveAutogradeWorkflow(
+  org: string,
+  classroom: string,
+  autograderName: string | undefined,
+  accessKey?: string,
+  branch: string = 'main',
+  configBranch: string = 'main'
+): Promise<string> {
+  const name = autograderName?.trim();
+  if (!name || name === 'default') {
+    return fetchAutogradeShim(org, branch, configBranch);
+  }
+  return fetchAutograderByName(org, classroom, name, accessKey);
 }
