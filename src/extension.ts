@@ -5,7 +5,7 @@ import { loginCommand, logoutCommand } from './commands/login';
 import { acceptAssignment } from './commands/accept';
 import { requireGitHubSession } from './auth/authProvider';
 import { getOrg, getOrgMembership, listUserMemberOrgs, validateOrgAccess } from './api/classroomApi';
-import { fetchClassroomsFromPages } from './api/pagesApi';
+import { fetchClassroomsFromPages, orgPublishesClassroomPages } from './api/pagesApi';
 import { AssignmentInfo } from './types';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -267,6 +267,16 @@ export function activate(context: vscode.ExtensionContext) {
     prompt: string
   ): Promise<string | undefined> {
     const orgs = await listUserMemberOrgs(session.accessToken);
+    const verdicts = await Promise.all(
+      orgs.map(async (org) => ({
+        org,
+        verdict: await orgPublishesClassroomPages(org.login),
+      }))
+    );
+    const filteredOrgs = verdicts
+      .filter((entry) => entry.verdict !== 'no')
+      .map((entry) => entry.org);
+
     const manualEntry: vscode.QuickPickItem & { manual: true } = {
       label: 'Enter organization manually',
       description: 'Type any GitHub organization name',
@@ -275,7 +285,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     const items: Array<vscode.QuickPickItem & { org?: string; manual?: boolean }> = [
       manualEntry,
-      ...orgs.map((org) => ({
+      ...filteredOrgs.map((org) => ({
         label: org.login,
         description: 'Organization membership',
         org: org.login, 

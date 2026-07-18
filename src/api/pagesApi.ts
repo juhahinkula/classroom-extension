@@ -40,9 +40,47 @@ type ClassroomsIndexFile = {
   }[];
 };
 
+export type OrgPagesVerdict = 'yes' | 'no' | 'indeterminate';
+
+export function classroomsIndexUrl(org: string): string {
+  return `https://${org}.github.io/${CONFIG_REPO}/classrooms-index.json`;
+}
+
+// Check if organization is potential Classroom50 organization
+// It will check Github pages if classrooms-index.json exists
+// Intermediate is uncertain and will be shown
+export async function orgPublishesClassroomPages(org: string): Promise<OrgPagesVerdict> {
+  const url = classroomsIndexUrl(org);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5_000);
+
+  let response: Response;
+  try {
+    response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+  } catch {
+    return 'indeterminate';
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (response.status === 404) {
+    return 'no';
+  }
+  if (!response.ok) {
+    return 'indeterminate';
+  }
+
+  try {
+    const data = (await response.json()) as { classrooms?: unknown };
+    return Array.isArray(data.classrooms) ? 'yes' : 'no';
+  } catch {
+    return 'indeterminate';
+  }
+}
+
 // Fetch classrooms from Github pages
 export async function fetchClassroomsFromPages(org: string): Promise<string[]> {
-  const url = `https://${org}.github.io/${CONFIG_REPO}/classrooms-index.json`;
+  const url = classroomsIndexUrl(org);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGES_FETCH_TIMEOUT_MS);
 
