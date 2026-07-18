@@ -109,6 +109,21 @@ In accepted assignments, these buttons are available:
 
 This extension does not provide a separate submit action. Submitting is done with standard Git commands: commit and push.
 
+### Group assignments
+
+Group assignments are supported in the accept flow.
+
+For group assignments, one student accepts first and becomes the repository founder.
+After that, teammate management is done in **GitHub**, not in the VS Code extension.
+
+How to manage teammates for a group assignment:
+1. Open the accepted repository on GitHub.
+2. Go to **Settings** --> **Collaborators and teams**.
+3. Add your group members as collaborators.
+
+> **Note**
+> Group members must be in the same GitHub organization and enrolled in the classroom.
+
 ### Submitted assignment
 
 After you submit the assignment, its status changes to ***submitted***. You can view the autograding result, if available, in the assignment view.

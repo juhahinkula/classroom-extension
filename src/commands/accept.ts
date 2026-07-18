@@ -125,8 +125,9 @@ export async function acceptAssignment(
           `Assignment "${entry.slug}" is not registered in ${org}/${classroom}. Contact your teacher.`
         );
       }
-      if (matched.mode && matched.mode !== '' && matched.mode !== 'individual') {
-        throw new Error(`Assignment "${entry.slug}" is mode "${matched.mode}" — group assignments are not yet supported.`);
+      const mode = (matched.mode || 'individual').trim().toLowerCase();
+      if (mode !== 'individual' && mode !== 'group') {
+        throw new Error(`Assignment "${entry.slug}" has unsupported mode "${matched.mode}".`);
       }
       const tmpl = matched.template;
       if (!tmpl.owner || !tmpl.repo || !tmpl.branch) {
@@ -167,7 +168,8 @@ export async function acceptAssignment(
 
       // add student as maintain collaborator
       progress.report({ message: 'Adding you as collaborator…', increment: 10 });
-      await addCollaborator(token, org, repoName, login, 'maintain');
+      const founderPermission = mode === 'group' ? 'admin' : 'maintain';
+      await addCollaborator(token, org, repoName, login, founderPermission);
 
       // Resolve the branch after repo creation so default shim trigger matches
       // the assignment repo's real default branch.
