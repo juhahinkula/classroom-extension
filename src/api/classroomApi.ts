@@ -261,7 +261,7 @@ export type GeneratedRepo = {
   name: string;
   full_name: string;
   html_url: string;
-  default_branch: string;
+  default_branch?: string;
 };
 
 type RepoInfo = {
@@ -343,6 +343,38 @@ export async function createRepoFromTemplate(
       throw new Error(
         `Template \`${templateOwner}/${templateRepo}\` is not accessible — ask your instructor to make it public or grant your account access.`
       );
+    }
+    throw err;
+  }
+}
+
+export async function createEmptyPrivateRepo(
+  token: string,
+  targetOrg: string,
+  newName: string,
+  autoInit = true
+): Promise<{ repo: GeneratedRepo; alreadyExists: boolean }> {
+  try {
+    const repo = await ghFetch<GeneratedRepo>(
+      token,
+      `orgs/${encodeURIComponent(targetOrg)}/repos`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          name: newName,
+          private: true,
+          auto_init: autoInit,
+        }),
+      }
+    );
+    return { repo, alreadyExists: false };
+  } catch (err) {
+    if (err instanceof GitHubError && err.status === 422) {
+      const repo = await ghFetch<GeneratedRepo>(
+        token,
+        `repos/${encodeURIComponent(targetOrg)}/${encodeURIComponent(newName)}`
+      );
+      return { repo, alreadyExists: true };
     }
     throw err;
   }
@@ -466,12 +498,19 @@ function sleep(ms: number): Promise<void> {
 
 /** Render .classroom50.yaml matching the CLI's double-quoted YAML format. */
 export function renderClassroomMetadata(cfg: ClassroomConfig): string {
-  return [
+  const lines = [
     `classroom: "${cfg.classroom}"`,
     `assignment: "${cfg.assignment}"`,
-    `source:`,
-    `  owner: "${cfg.source.owner}"`,
-    `  repo: "${cfg.source.repo}"`,
-    `  branch: "${cfg.source.branch}"`,
-  ].join('\n') + '\n';
+  ];
+
+  if (cfg.source) {
+    lines.push(
+      `source:`,
+      `  owner: "${cfg.source.owner}"`,
+      `  repo: "${cfg.source.repo}"`,
+      `  branch: "${cfg.source.branch}"`
+    );
+  }
+
+  return lines.join('\n') + '\n';
 }

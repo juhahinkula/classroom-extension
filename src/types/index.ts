@@ -9,8 +9,9 @@ export type AssignmentEntry = {
   name: string;
   mode: string;
   max_group_size?: number;
-  template: TemplateRef;
+  template?: TemplateRef;
   autograder: string;
+  empty_repo?: boolean;
 };
 
 export type AssignmentsFile = {
@@ -29,7 +30,7 @@ export type ClassroomSource = {
 export type ClassroomConfig = {
   classroom: string;
   assignment: string;
-  source: ClassroomSource;
+  source?: ClassroomSource;
 };
 
 export type GitHubUser = {

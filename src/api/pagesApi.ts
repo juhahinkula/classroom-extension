@@ -142,7 +142,7 @@ function readString(record: Record<string, unknown>, key: string): string | unde
   return typeof value === 'string' ? value.trim() : undefined;
 }
 
-function normalizeTemplateRef(raw: Record<string, unknown>): TemplateRef {
+function normalizeTemplateRef(raw: Record<string, unknown>): TemplateRef | undefined {
   const templateCandidate = isRecord(raw.template)
     ? raw.template
     : isRecord(raw.source)
@@ -150,7 +150,7 @@ function normalizeTemplateRef(raw: Record<string, unknown>): TemplateRef {
     : undefined;
 
   if (!templateCandidate) {
-    return { owner: '', repo: '', branch: '' };
+    return undefined;
   }
 
   return {
@@ -172,6 +172,7 @@ function normalizeAssignmentEntry(raw: unknown): AssignmentEntry | undefined {
 
   const maxGroupSizeRaw = raw.max_group_size;
   const maxGroupSize = typeof maxGroupSizeRaw === 'number' ? maxGroupSizeRaw : undefined;
+  const emptyRepo = raw.empty_repo === true ? true : undefined;
 
   return {
     slug,
@@ -180,6 +181,7 @@ function normalizeAssignmentEntry(raw: unknown): AssignmentEntry | undefined {
     max_group_size: maxGroupSize,
     template: normalizeTemplateRef(raw),
     autograder: readString(raw, 'autograder') || 'default',
+    empty_repo: emptyRepo,
   };
 }
 

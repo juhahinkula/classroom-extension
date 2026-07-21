@@ -8,6 +8,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Group addignment support.
 - Show classroon names (not only slug).
+- Support empty repository assignments.
 
 ## version 0.1.0 
 

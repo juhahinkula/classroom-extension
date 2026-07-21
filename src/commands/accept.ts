@@ -13,6 +13,7 @@ import {
   listUserReposInOrg,
   findGroupMembershipRepo,
   createRepoFromTemplate,
+  createEmptyPrivateRepo,
   getRepoDefaultBranch,
   patchRepo,
   addCollaborator,
@@ -151,22 +152,33 @@ export async function acceptAssignment(
       }
 
       const tmpl = matched.template;
-      if (!tmpl?.owner || !tmpl.repo || !tmpl.branch) {
+      const hasTemplate = Boolean(tmpl?.owner && tmpl.repo && tmpl.branch);
+      const hasTemplateBlock = Boolean(tmpl);
+      const isEmptyRepo = matched.empty_repo === true;
+
+      if (hasTemplateBlock && !hasTemplate) {
         throw new Error(
           `Assignment "${entry.slug}" has an incomplete template ref. Contact your teacher.`
         );
       }
 
-      // create private repo from template
+      if (isEmptyRepo && hasTemplateBlock) {
+        throw new Error(
+          `Assignment "${entry.slug}" sets both empty_repo and a template. Contact your teacher.`
+        );
+      }
+
       const repoName = assignmentRepoName(classroom, entry.slug, login);
       progress.report({ message: `Creating repository ${org}/${repoName}…`, increment: 20 });
-      const { repo, alreadyExists } = await createRepoFromTemplate(
-        token,
-        tmpl.owner,
-        tmpl.repo,
-        org,
-        repoName
-      );
+      const { repo, alreadyExists } = hasTemplate
+        ? await createRepoFromTemplate(
+            token,
+            tmpl!.owner,
+            tmpl!.repo,
+            org,
+            repoName
+          )
+        : await createEmptyPrivateRepo(token, org, repoName, !isEmptyRepo);
 
       if (alreadyExists) {
         vscode.window.showInformationMessage(
@@ -192,9 +204,26 @@ export async function acceptAssignment(
       const founderPermission = mode === 'group' ? 'admin' : 'maintain';
       await addCollaborator(token, org, repoName, login, founderPermission);
 
+      if (isEmptyRepo) {
+        progress.report({ message: 'Done!', increment: 20 });
+
+        const choice = await vscode.window.showInformationMessage(
+          `Assignment accepted: ${repo.full_name}\n\nClone with: git clone ${repo.html_url}.git`,
+          'Open on GitHub',
+          'Copy Clone URL'
+        );
+        if (choice === 'Open on GitHub') {
+          await vscode.env.openExternal(vscode.Uri.parse(repo.html_url));
+        } else if (choice === 'Copy Clone URL') {
+          await vscode.env.clipboard.writeText(`git clone ${repo.html_url}.git`);
+        }
+
+        return repo.html_url;
+      }
+
       // Resolve the branch after repo creation so default shim trigger matches
       // the assignment repo's real default branch.
-      const targetBranch = repo.default_branch || tmpl.branch;
+      const targetBranch = repo.default_branch || tmpl?.branch || 'main';
       const configBranch =
         (await getRepoDefaultBranch(token, org, 'classroom50').catch(() => undefined)) ||
         targetBranch;
@@ -216,7 +245,9 @@ export async function acceptAssignment(
       const cfg: ClassroomConfig = {
         classroom,
         assignment: entry.slug,
-        source: { owner: tmpl.owner, repo: tmpl.repo, branch: tmpl.branch },
+        source: hasTemplate
+          ? { owner: tmpl!.owner, repo: tmpl!.repo, branch: tmpl!.branch }
+          : undefined,
       };
       await commitFiles(
         token,
