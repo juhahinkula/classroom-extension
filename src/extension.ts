@@ -165,7 +165,10 @@ export function activate(context: vscode.ExtensionContext) {
       if (classrooms.length > 0) {
         const selected = await vscode.window.showQuickPick(
           classrooms.map((classroom) => ({
-            label: classroom,
+            label: `${classroom.name} (${classroom.slug})`,
+            description: classroom.slug,
+            slug: classroom.slug,
+            name: classroom.name,
             picked: false,
           })),
           {
@@ -180,7 +183,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         for (const classroom of selected) {
-          await treeProvider.addClassroom(trimmedOrg, classroom.label.trim());
+          await treeProvider.addClassroom(trimmedOrg, classroom.slug.trim(), classroom.name.trim());
         }
         treeProvider.refresh();
         return;

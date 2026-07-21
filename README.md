@@ -117,6 +117,8 @@ For group assignments, one student accepts first and becomes the repository foun
 In the extension assignment view, the founder sees a **Manage Collaborators** button.
 This button opens the repository collaborator settings on GitHub.
 
+![Group assignment](images/group.png)
+
 How to manage teammates for a group assignment:
 1. Open the group assignment in the extension.
 2. Click **Manage Collaborators**.

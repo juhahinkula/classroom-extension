@@ -2,7 +2,7 @@
   "name": "classroom-extension",
   "displayName": "Classroom 50",
   "description": "Classroom50 student extension - browse classrooms, accept assignments.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "icon": "images/icon-education.png",
   "publisher": "juhahinkula",
   "author": {

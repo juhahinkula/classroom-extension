@@ -10,7 +10,7 @@ import {
   getRepoCollaboratorLogins,
   parseGroupRepoFounder,
 } from '../api/classroomApi';
-import { fetchAssignments, isValidAccessKey } from '../api/pagesApi';
+import { fetchAssignments, fetchClassroomsFromPages, isValidAccessKey } from '../api/pagesApi';
 import { AssignmentEntry, AssignmentInfo } from '../types';
 
 function isPagesNotFoundError(err: unknown): boolean {
@@ -34,15 +34,23 @@ export class ClassroomItem extends vscode.TreeItem {
   readonly kind = 'classroom' as const;
   constructor(
     public readonly org: string,
-    public readonly classroom: string
+    public readonly classroom: string,
+    public readonly classroomName?: string
   ) {
-    super(classroom, vscode.TreeItemCollapsibleState.Collapsed);
+    super(classroomName || classroom, vscode.TreeItemCollapsibleState.Collapsed);
     this.contextValue = 'classroom';
     this.iconPath = new vscode.ThemeIcon('book');
     this.description = org;
-    this.tooltip = `${org}/${classroom}`;
+    this.tooltip = classroomName && classroomName !== classroom
+      ? `${classroomName} (${org}/${classroom})`
+      : `${org}/${classroom}`;
   }
 }
+
+type StoredClassroom = {
+  slug: string;
+  name?: string;
+};
 
 export class AssignmentItem extends vscode.TreeItem {
   readonly kind = 'assignment' as const;
@@ -186,8 +194,29 @@ export class ClassroomTreeProvider
     token: string,
     org: string
   ): Promise<ClassroomTreeItem[]> {
-    const storeKey = `classrooms:${org}`;
-    const stored = [...new Set((this.context.globalState.get<string[]>(storeKey) ?? []).map((entry) => entry.trim()).filter(Boolean))];
+    let stored = this.readStoredClassrooms(org);
+
+    // Backfill names for legacy entries that were stored as plain slugs.
+    if (stored.some((entry) => !entry.name)) {
+      try {
+        const listings = await fetchClassroomsFromPages(org);
+        const namesBySlug = new Map(
+          listings.map((listing) => [listing.slug.toLowerCase(), listing.name])
+        );
+        const enriched = stored.map((entry) => ({
+          ...entry,
+          name: entry.name || namesBySlug.get(entry.slug.toLowerCase()),
+        }));
+
+        const changed = enriched.some((entry, index) => entry.name !== stored[index].name);
+        if (changed) {
+          stored = enriched;
+          await this.context.globalState.update(this.classroomStoreKey(org), enriched);
+        }
+      } catch {
+        // Ignore enrichment failures and keep existing stored values.
+      }
+    }
 
     if (stored.length === 0) {
       return [
@@ -196,7 +225,7 @@ export class ClassroomTreeProvider
       ];
     }
 
-    return stored.map((c) => new ClassroomItem(org, c));
+    return stored.map((c) => new ClassroomItem(org, c.slug, c.name));
   }
 
   private async getAssignmentsForClassroom(
@@ -356,22 +385,78 @@ export class ClassroomTreeProvider
     return key?.trim();
   }
 
-  // Save a classroom slug under an org so it persists across reloads
-  async addClassroom(org: string, classroom: string): Promise<void> {
-    const key = `classrooms:${org}`;
-    const existing = this.context.globalState.get<string[]>(key) ?? [];
+  // Save a classroom slug + optional display name under an org so it persists across reloads.
+  async addClassroom(org: string, classroom: string, classroomName?: string): Promise<void> {
+    const key = this.classroomStoreKey(org);
+    const existing = this.readStoredClassrooms(org);
     const trimmedClassroom = classroom.trim();
-    if (!existing.some((entry) => entry.trim().toLowerCase() === trimmedClassroom.toLowerCase())) {
-      await this.context.globalState.update(key, [...existing, trimmedClassroom]);
+    const trimmedName = classroomName?.trim();
+    const existingIndex = existing.findIndex(
+      (entry) => entry.slug.toLowerCase() === trimmedClassroom.toLowerCase()
+    );
+
+    if (existingIndex >= 0) {
+      const current = existing[existingIndex];
+      if (trimmedName && current.name !== trimmedName) {
+        existing[existingIndex] = { ...current, name: trimmedName };
+        await this.context.globalState.update(key, existing);
+      }
+      return;
     }
+
+    await this.context.globalState.update(key, [...existing, { slug: trimmedClassroom, name: trimmedName }]);
   }
 
   async removeClassroom(org: string, classroom: string): Promise<void> {
-    const key = `classrooms:${org}`;
-    const existing = this.context.globalState.get<string[]>(key) ?? [];
+    const key = this.classroomStoreKey(org);
+    const existing = this.readStoredClassrooms(org);
     const remaining = existing.filter(
-      (entry) => entry.trim().toLowerCase() !== classroom.trim().toLowerCase()
+      (entry) => entry.slug.toLowerCase() !== classroom.trim().toLowerCase()
     );
     await this.context.globalState.update(key, remaining.length > 0 ? remaining : undefined);
+  }
+
+  private classroomStoreKey(org: string): string {
+    return `classrooms:${org}`;
+  }
+
+  private readStoredClassrooms(org: string): StoredClassroom[] {
+    const key = this.classroomStoreKey(org);
+    const raw = this.context.globalState.get<unknown[]>(key) ?? [];
+    const bySlug = new Map<string, StoredClassroom>();
+
+    for (const entry of raw) {
+      if (typeof entry === 'string') {
+        const slug = entry.trim();
+        if (!slug) {
+          continue;
+        }
+        const id = slug.toLowerCase();
+        if (!bySlug.has(id)) {
+          bySlug.set(id, { slug });
+        }
+        continue;
+      }
+
+      if (typeof entry === 'object' && entry !== null && 'slug' in entry) {
+        const slugValue = (entry as { slug?: unknown }).slug;
+        const nameValue = (entry as { name?: unknown }).name;
+        const slug = typeof slugValue === 'string' ? slugValue.trim() : '';
+        const name = typeof nameValue === 'string' ? nameValue.trim() : undefined;
+        if (!slug) {
+          continue;
+        }
+
+        const id = slug.toLowerCase();
+        const existing = bySlug.get(id);
+        if (!existing) {
+          bySlug.set(id, { slug, name });
+        } else if (!existing.name && name) {
+          bySlug.set(id, { ...existing, name });
+        }
+      }
+    }
+
+    return [...bySlug.values()];
   }
 }

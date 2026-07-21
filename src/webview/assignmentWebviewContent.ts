@@ -17,6 +17,9 @@ export function getAssignmentWebviewContent(
       Array.isArray(groupMembers) &&
       groupMembers.length >= maxGroupSize
   );
+  const headerTitle = entry.name && entry.name !== entry.slug
+    ? `${entry.name} (${entry.slug})`
+    : entry.slug;
   const canManageCollaborators = Boolean(
     isGroupAssignment && isAccepted && !isGroupMember && repoUrl && !isGroupFull
   );
@@ -68,7 +71,7 @@ export function getAssignmentWebviewContent(
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'none'; style-src ${webview.cspSource} 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${entry.name || entry.slug}</title>
+  <title>${headerTitle}</title>
   <style nonce="${nonce}">
     :root {
       --bg: var(--vscode-editor-background);
@@ -219,7 +222,7 @@ export function getAssignmentWebviewContent(
   </style>
 </head>
 <body>
-  <h1>${escapeHtml(entry.name || entry.slug)}</h1>
+  <h1>${escapeHtml(headerTitle)}</h1>
   <div class="meta">${escapeHtml(org)} / ${escapeHtml(classroom)}</div>
 
   <div class="section">
@@ -233,11 +236,6 @@ export function getAssignmentWebviewContent(
   </div>
 
   ${groupDetailsUnderModeHtml}
-
-  <div class="section">
-    <div class="label">Assignment</div>
-    <div class="value"><code>${escapeHtml(entry.slug)}</code></div>
-  </div>
 
   ${openRepoUrl ? `<div class="section">
     <div class="label">${isGroupMember ? 'Group repository' : 'Your repository'}</div>

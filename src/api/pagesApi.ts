@@ -36,8 +36,17 @@ export function pagesAutograderUrl(
 type ClassroomsIndexFile = {
   classrooms: {
     short_name: string;
+    name?: string;
+    display_name?: string;
+    long_name?: string;
+    title?: string;
     active?: boolean;
   }[];
+};
+
+export type ClassroomListing = {
+  slug: string;
+  name: string;
 };
 
 export type OrgPagesVerdict = 'yes' | 'no' | 'indeterminate';
@@ -79,7 +88,7 @@ export async function orgPublishesClassroomPages(org: string): Promise<OrgPagesV
 }
 
 // Fetch classrooms from Github pages
-export async function fetchClassroomsFromPages(org: string): Promise<string[]> {
+export async function fetchClassroomsFromPages(org: string): Promise<ClassroomListing[]> {
   const url = classroomsIndexUrl(org);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGES_FETCH_TIMEOUT_MS);
@@ -100,8 +109,20 @@ export async function fetchClassroomsFromPages(org: string): Promise<string[]> {
   const file = (await response.json()) as ClassroomsIndexFile;
   return (file.classrooms ?? [])
     .filter((classroom) => classroom.active !== false)
-    .map((classroom) => classroom.short_name)
-    .filter(Boolean);
+    .map((classroom) => {
+      const slug = classroom.short_name?.trim();
+      const name =
+        classroom.name?.trim() ||
+        classroom.display_name?.trim() ||
+        classroom.long_name?.trim() ||
+        classroom.title?.trim() ||
+        slug;
+      if (!slug) {
+        return undefined;
+      }
+      return { slug, name };
+    })
+    .filter((classroom): classroom is ClassroomListing => Boolean(classroom));
 }
 
 // TODO: Is this ok??
