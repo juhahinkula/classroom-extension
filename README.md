@@ -24,6 +24,8 @@ This extension is designed for students using Classroom50 courses.
 2. Click on the Classroom50 tab in the activity bar
 3. Click the **Sign in to Github** and complete the sign process, using your GitHub account. 
 
+This extension is using OAuth2-based GitHub authentication via VS Code. It use your web browser to ask GitHub for permission to perform tasks on your behalf and then redirect back to VS Code.
+
 ![Github sign-in](images/signin.png)
 
 ## Organizations
