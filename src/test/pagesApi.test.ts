@@ -212,7 +212,10 @@ suite('fetchClassroomsFromPages', () => {
       },
     });
     const result = await fetchClassroomsFromPages('cs50');
-    assert.deepStrictEqual(result, ['cs50-fall', 'cs50-spring']);
+    assert.deepStrictEqual(result, [
+      { slug: 'cs50-fall', name: 'cs50-fall' },
+      { slug: 'cs50-spring', name: 'cs50-spring' },
+    ]);
   });
 
   test('filters out classrooms with active=false', async () => {
@@ -226,7 +229,7 @@ suite('fetchClassroomsFromPages', () => {
       },
     });
     const result = await fetchClassroomsFromPages('cs50');
-    assert.deepStrictEqual(result, ['active-class']);
+    assert.deepStrictEqual(result, [{ slug: 'active-class', name: 'active-class' }]);
   });
 
   test('includes classrooms when active field is absent (defaults to active)', async () => {
@@ -235,7 +238,7 @@ suite('fetchClassroomsFromPages', () => {
       json: { classrooms: [{ short_name: 'my-class' }] },
     });
     const result = await fetchClassroomsFromPages('cs50');
-    assert.deepStrictEqual(result, ['my-class']);
+    assert.deepStrictEqual(result, [{ slug: 'my-class', name: 'my-class' }]);
   });
 
   test('returns empty array on non-OK response', async () => {

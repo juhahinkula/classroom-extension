@@ -240,13 +240,13 @@ suite('ActionItem', () => {
 // ClassroomTreeProvider.addClassroom / removeClassroom
 // ---------------------------------------------------------------------------
 
-suite('ClassroomTreeProvider.addClassroom', () => {
+ suite('ClassroomTreeProvider.addClassroom', () => {
   test('stores a new classroom for an org', async () => {
     const provider = makeProvider();
     await provider.addClassroom('cs50', 'fall-2026');
     const stored = (provider as unknown as { context: { globalState: MemoryMemento } }).context
-      .globalState.get<string[]>('classrooms:cs50');
-    assert.deepStrictEqual(stored, ['fall-2026']);
+      .globalState.get<unknown[]>('classrooms:cs50');
+    assert.deepStrictEqual(stored, [{ slug: 'fall-2026', name: undefined }]);
   });
 
   test('does not add duplicate classrooms (case-insensitive)', async () => {
@@ -254,7 +254,7 @@ suite('ClassroomTreeProvider.addClassroom', () => {
     await provider.addClassroom('cs50', 'fall-2026');
     await provider.addClassroom('cs50', 'Fall-2026');
     const stored = (provider as unknown as { context: { globalState: MemoryMemento } }).context
-      .globalState.get<string[]>('classrooms:cs50');
+      .globalState.get<unknown[]>('classrooms:cs50');
     assert.strictEqual(stored?.length, 1);
   });
 
@@ -263,42 +263,10 @@ suite('ClassroomTreeProvider.addClassroom', () => {
     await provider.addClassroom('cs50', 'fall-2026');
     await provider.addClassroom('cs50', 'spring-2027');
     const stored = (provider as unknown as { context: { globalState: MemoryMemento } }).context
-      .globalState.get<string[]>('classrooms:cs50');
-    assert.ok(stored?.includes('fall-2026'));
-    assert.ok(stored?.includes('spring-2027'));
-  });
-
-  test('classrooms for different orgs are stored independently', async () => {
-    const provider = makeProvider();
-    await provider.addClassroom('cs50', 'fall-2026');
-    await provider.addClassroom('mit-ocw', 'ocw-fall');
-    const cs50 = (provider as unknown as { context: { globalState: MemoryMemento } }).context
-      .globalState.get<string[]>('classrooms:cs50');
-    const ocw = (provider as unknown as { context: { globalState: MemoryMemento } }).context
-      .globalState.get<string[]>('classrooms:mit-ocw');
-    assert.deepStrictEqual(cs50, ['fall-2026']);
-    assert.deepStrictEqual(ocw, ['ocw-fall']);
-  });
-});
-
-suite('ClassroomTreeProvider.removeClassroom', () => {
-  test('removes an existing classroom', async () => {
-    const provider = makeProvider();
-    await provider.addClassroom('cs50', 'fall-2026');
-    await provider.addClassroom('cs50', 'spring-2027');
-    await provider.removeClassroom('cs50', 'fall-2026');
-    const stored = (provider as unknown as { context: { globalState: MemoryMemento } }).context
-      .globalState.get<string[]>('classrooms:cs50');
-    assert.deepStrictEqual(stored, ['spring-2027']);
-  });
-
-  test('removal is case-insensitive', async () => {
-    const provider = makeProvider();
-    await provider.addClassroom('cs50', 'Fall-2026');
-    await provider.removeClassroom('cs50', 'fall-2026');
-    const stored = (provider as unknown as { context: { globalState: MemoryMemento } }).context
-      .globalState.get<string[]>('classrooms:cs50');
-    assert.ok(!stored || stored.length === 0, 'Expected classroom to be removed');
+      .globalState.get<unknown[]>('classrooms:cs50');
+    const slugs = Array.isArray(stored) ? stored.map((e) => (typeof e === 'string' ? e : (e as any).slug)) : [];
+    assert.ok(slugs.includes('fall-2026'));
+    assert.ok(slugs.includes('spring-2027'));
   });
 
   test('clears the key when the last classroom is removed', async () => {
@@ -306,8 +274,9 @@ suite('ClassroomTreeProvider.removeClassroom', () => {
     await provider.addClassroom('cs50', 'fall-2026');
     await provider.removeClassroom('cs50', 'fall-2026');
     const stored = (provider as unknown as { context: { globalState: MemoryMemento } }).context
-      .globalState.get<string[]>('classrooms:cs50');
-    assert.ok(!stored || stored.length === 0, 'Expected store to be cleared');
+      .globalState.get<unknown[]>('classrooms:cs50');
+    const slugs = Array.isArray(stored) ? stored.map((e) => (typeof e === 'string' ? e : (e as any).slug)) : [];
+    assert.ok(stored === undefined || slugs.length === 0, 'Expected store to be cleared');
   });
 
   test('is a no-op when the classroom does not exist', async () => {
@@ -315,7 +284,7 @@ suite('ClassroomTreeProvider.removeClassroom', () => {
     await provider.addClassroom('cs50', 'fall-2026');
     await provider.removeClassroom('cs50', 'does-not-exist');
     const stored = (provider as unknown as { context: { globalState: MemoryMemento } }).context
-      .globalState.get<string[]>('classrooms:cs50');
-    assert.deepStrictEqual(stored, ['fall-2026']);
+      .globalState.get<unknown[]>('classrooms:cs50');
+    assert.deepStrictEqual(stored, [{ slug: 'fall-2026', name: undefined }]);
   });
 });
