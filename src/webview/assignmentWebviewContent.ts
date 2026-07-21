@@ -7,19 +7,59 @@ export function getAssignmentWebviewContent(
   nonce: string
 ): string {
   const { entry, org, classroom, status, repoUrl } = info;
-  const { releaseNotes } = info;
+  const { releaseNotes, isGroupAssignment, maxGroupSize, groupMembers, groupRepoUrl } = info;
   const isAccepted = status === 'accepted' || status === 'submitted';
+  const isGroupMember = status === 'group-member';
+  const isGroupFull = Boolean(
+    isGroupAssignment &&
+      typeof maxGroupSize === 'number' &&
+      maxGroupSize > 0 &&
+      Array.isArray(groupMembers) &&
+      groupMembers.length >= maxGroupSize
+  );
+  const canManageCollaborators = Boolean(
+    isGroupAssignment && isAccepted && !isGroupMember && repoUrl && !isGroupFull
+  );
+  const openRepoUrl = isGroupMember ? (groupRepoUrl || repoUrl) : repoUrl;
   const cloneCommand = repoUrl ? `git clone ${repoUrl.replace(/\/$/, '')}.git` : '';
 
-  const acceptButton = isAccepted
-    ? `<a class="btn btn-secondary" href="${repoUrl}" id="openBtn">Open Repository ↗</a>`
+  const acceptButton = (isAccepted || isGroupMember) && openRepoUrl
+    ? `<a class="btn btn-secondary" href="${openRepoUrl}" id="openBtn">${isGroupMember ? 'Open Group Repository ↗' : 'Open Repository ↗'}</a>`
     : `<button class="btn btn-primary" id="acceptBtn">Accept Assignment</button>`;
 
   const statusBadge = status === 'submitted'
     ? `<span class="badge badge-success">✓ Submitted</span>`
+    : status === 'group-member'
+    ? `<span class="badge badge-success">Already in group</span>`
     : isAccepted
     ? `<span class="badge badge-success">✓ Accepted</span>`
     : `<span class="badge badge-pending">Not yet accepted</span>`;
+
+  const modeBadge = isGroupAssignment
+    ? `<span class="badge badge-pending">Group${maxGroupSize ? ` (max ${maxGroupSize})` : ''}</span>`
+    : `<span class="badge badge-pending">Individual</span>`;
+
+  const groupMembersHtml = groupMembers && groupMembers.length
+    ? `<div class="section">
+    <div class="label">Group members</div>
+    <div class="value"><code>${groupMembers.map((member) => escapeHtml(member)).join('</code>, <code>')}</code></div>
+  </div>`
+    : '';
+
+  const groupDetailsUnderModeHtml = isGroupAssignment
+    ? `<div class="section">
+    <div class="label">Group members</div>
+    <div class="group-members-row">
+      <div class="value group-members-value">${groupMembers && groupMembers.length
+      ? `<code>${groupMembers.map((member) => escapeHtml(member)).join('</code>, <code>')}</code>`
+      : '<span>Not available yet</span>'}</div>
+      ${(canManageCollaborators || isGroupFull)
+      ? `<button class="btn btn-manage" id="manageCollaboratorsBtn" ${isGroupFull ? 'disabled aria-disabled="true" title="Group is full"' : ''}>Manage Collaborators</button>`
+      : ''}
+    </div>
+    ${isGroupFull ? '<div class="group-full-warning">Group is full. Maximum group size reached.</div>' : ''}
+  </div>`
+    : '';
 
   return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -87,6 +127,39 @@ export function getAssignmentWebviewContent(
       border: 1px solid transparent;
     }
     .btn-clone-open:hover { background: var(--btn-hover); }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .group-members-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .group-members-value {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .btn-manage {
+      background: var(--btn-bg);
+      color: var(--btn-fg);
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .btn-manage:hover { background: var(--btn-hover); }
+    .btn-manage:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .group-full-warning {
+      margin-top: 6px;
+      color: var(--vscode-editorWarning-foreground);
+      font-size: 0.9em;
+    }
     .clone-command {
       display: block;
       margin-top: 8px;
@@ -155,14 +228,23 @@ export function getAssignmentWebviewContent(
   </div>
 
   <div class="section">
+    <div class="label">Mode</div>
+    <div class="value">${modeBadge}</div>
+  </div>
+
+  ${groupDetailsUnderModeHtml}
+
+  <div class="section">
     <div class="label">Assignment</div>
     <div class="value"><code>${escapeHtml(entry.slug)}</code></div>
   </div>
 
-  ${repoUrl ? `<div class="section">
-    <div class="label">Your repository</div>
-    <div class="value"><a href="${repoUrl}" id="repoLink">${escapeHtml(repoUrl.replace('https://github.com/', ''))}</a></div>
+  ${openRepoUrl ? `<div class="section">
+    <div class="label">${isGroupMember ? 'Group repository' : 'Your repository'}</div>
+    <div class="value"><a href="${openRepoUrl}" id="repoLink">${escapeHtml(openRepoUrl.replace('https://github.com/', ''))}</a></div>
   </div>` : ''}
+
+  ${!isGroupAssignment ? groupMembersHtml : ''}
 
   ${status === 'accepted' && repoUrl ? `<div class="section">
     <div class="label">Clone</div>
@@ -183,6 +265,11 @@ export function getAssignmentWebviewContent(
     <p class="info-note">After push, status may take a while to change to Submitted because Classroom50 uses GitHub workflows for grading.</p>
   </div>` : ''}
 
+  ${status === 'group-member' ? `<div class="section info-box">
+    <div class="info-title">Already in a group</div>
+    <p class="info-note">You already belong to a group repository for this assignment. Ask your group admin to manage collaborators if your team needs changes.</p>
+  </div>` : ''}
+
   ${repoUrl && releaseNotes ? `<div class="section release-notes">
     <div class="label">Grading</div>
     <pre class="release-body">${escapeHtml(releaseNotes)}</pre>
@@ -190,7 +277,7 @@ export function getAssignmentWebviewContent(
 
   <hr>
 
-  <div>
+  <div class="actions">
     ${acceptButton}
     <p class="progress" id="progress">Accepting assignment, please wait…</p>
   </div>
@@ -202,6 +289,7 @@ export function getAssignmentWebviewContent(
     const openBtn   = document.getElementById('openBtn');
     const copyCloneBtn = document.getElementById('copyCloneBtn');
     const cloneOpenBtn = document.getElementById('cloneOpenBtn');
+    const manageCollaboratorsBtn = document.getElementById('manageCollaboratorsBtn');
     const cloneCommandEl = document.getElementById('cloneCommand');
     const progress  = document.getElementById('progress');
 
@@ -226,6 +314,14 @@ export function getAssignmentWebviewContent(
       cloneOpenBtn.addEventListener('click', () => {
         vscode.postMessage({
           type: 'cloneAndOpen',
+        });
+      });
+    }
+
+    if (manageCollaboratorsBtn) {
+      manageCollaboratorsBtn.addEventListener('click', () => {
+        vscode.postMessage({
+          type: 'openManageCollaborators',
         });
       });
     }

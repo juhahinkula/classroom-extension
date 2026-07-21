@@ -1,4 +1,4 @@
-import { AssignmentEntry, AssignmentsFile, ASSIGNMENTS_SCHEMA_V1 } from '../types';
+import { AssignmentEntry, AssignmentsFile, ASSIGNMENTS_SCHEMA_V1, TemplateRef } from '../types';
 
 const CONFIG_REPO = 'classroom50';
 const PAGES_FETCH_TIMEOUT_MS = 15_000;
@@ -112,6 +112,56 @@ export const SHIM_ORG_PLACEHOLDER = '{{ORG}}';
 export const SHIM_BRANCH_PLACEHOLDER = '{{BRANCH}}';
 export const SHIM_CONFIG_BRANCH_PLACEHOLDER = '{{CONFIG_BRANCH}}';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function readString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' ? value.trim() : undefined;
+}
+
+function normalizeTemplateRef(raw: Record<string, unknown>): TemplateRef {
+  const templateCandidate = isRecord(raw.template)
+    ? raw.template
+    : isRecord(raw.source)
+    ? raw.source
+    : undefined;
+
+  if (!templateCandidate) {
+    return { owner: '', repo: '', branch: '' };
+  }
+
+  return {
+    owner: readString(templateCandidate, 'owner') || '',
+    repo: readString(templateCandidate, 'repo') || '',
+    branch: readString(templateCandidate, 'branch') || '',
+  };
+}
+
+function normalizeAssignmentEntry(raw: unknown): AssignmentEntry | undefined {
+  if (!isRecord(raw)) {
+    return undefined;
+  }
+
+  const slug = readString(raw, 'slug');
+  if (!slug) {
+    return undefined;
+  }
+
+  const maxGroupSizeRaw = raw.max_group_size;
+  const maxGroupSize = typeof maxGroupSizeRaw === 'number' ? maxGroupSizeRaw : undefined;
+
+  return {
+    slug,
+    name: readString(raw, 'name') || slug,
+    mode: readString(raw, 'mode') || 'individual',
+    max_group_size: maxGroupSize,
+    template: normalizeTemplateRef(raw),
+    autograder: readString(raw, 'autograder') || 'default',
+  };
+}
+
 export async function fetchAssignments(
   org: string,
   classroom: string,
@@ -149,7 +199,9 @@ export async function fetchAssignments(
     );
   }
 
-  return file.assignments ?? [];
+  return (file.assignments ?? [])
+    .map((entry) => normalizeAssignmentEntry(entry))
+    .filter((entry): entry is AssignmentEntry => Boolean(entry));
 }
 
 export async function fetchAutogradeShim(

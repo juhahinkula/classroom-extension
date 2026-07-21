@@ -114,12 +114,16 @@ This extension does not provide a separate submit action. Submitting is done wit
 Group assignments are supported in the accept flow.
 
 For group assignments, one student accepts first and becomes the repository founder.
-After that, teammate management is done in **GitHub**, not in the VS Code extension.
+In the extension assignment view, the founder sees a **Manage Collaborators** button.
+This button opens the repository collaborator settings on GitHub.
 
 How to manage teammates for a group assignment:
-1. Open the accepted repository on GitHub.
-2. Go to **Settings** --> **Collaborators and teams**.
-3. Add your group members as collaborators.
+1. Open the group assignment in the extension.
+2. Click **Manage Collaborators**.
+3. On GitHub, add or remove collaborators in repository settings.
+
+Only the group founder (the student who accepted the assignment) sees this button.
+Group members can ask their founder to manage collaborators.
 
 > **Note**
 > Group members must be in the same GitHub organization and enrolled in the classroom.

@@ -130,6 +130,85 @@ export function assignmentRepoName(
   return `${classroom.toLowerCase()}-${assignment.toLowerCase()}-${login.toLowerCase()}`;
 }
 
+export function parseGroupRepoFounder(
+  repoName: string,
+  classroom: string,
+  assignment: string
+): string | undefined {
+  const prefix = `${classroom.toLowerCase()}-${assignment.toLowerCase()}-`;
+  const loweredName = repoName.toLowerCase();
+  if (!loweredName.startsWith(prefix)) {
+    return undefined;
+  }
+  const founder = loweredName.slice(prefix.length).trim();
+  return founder || undefined;
+}
+
+export function listGroupReposForAssignment(
+  repos: GitHubRepo[],
+  classroom: string,
+  assignment: string,
+  siblingSlugs: string[] = []
+): GitHubRepo[] {
+  const classroomLower = classroom.toLowerCase();
+  const assignmentLower = assignment.toLowerCase();
+  const prefix = `${classroomLower}-${assignmentLower}-`;
+  const overlapPrefixes = siblingSlugs
+    .map((slug) => slug.toLowerCase())
+    .filter((slug) => slug !== assignmentLower)
+    .map((slug) => `${classroomLower}-${slug}-`)
+    .filter((siblingPrefix) => siblingPrefix.startsWith(prefix));
+
+  return repos.filter((repo) => {
+    const name = repo.name.toLowerCase();
+    if (!name.startsWith(prefix)) {
+      return false;
+    }
+    if (overlapPrefixes.some((siblingPrefix) => name.startsWith(siblingPrefix))) {
+      return false;
+    }
+    return Boolean(name.slice(prefix.length));
+  });
+}
+
+export function findGroupMembershipRepo(
+  repos: GitHubRepo[],
+  classroom: string,
+  assignment: string,
+  login: string,
+  siblingSlugs: string[] = []
+): GitHubRepo | undefined {
+  const ownRepo = assignmentRepoName(classroom, assignment, login);
+  return listGroupReposForAssignment(repos, classroom, assignment, siblingSlugs).find(
+    (repo) => repo.name.toLowerCase() !== ownRepo
+  );
+}
+
+type RepoCollaborator = {
+  login: string;
+};
+
+export async function getRepoCollaboratorLogins(
+  token: string,
+  owner: string,
+  repo: string
+): Promise<string[]> {
+  try {
+    const collaborators = await ghFetch<RepoCollaborator[]>(
+      token,
+      `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators?per_page=100`
+    );
+    return collaborators
+      .map((collaborator) => collaborator.login?.trim())
+      .filter((login): login is string => Boolean(login));
+  } catch (err) {
+    if (err instanceof GitHubError && (err.status === 403 || err.status === 404)) {
+      return [];
+    }
+    throw err;
+  }
+}
+
 export type OrgMembershipStatus = {
   state: 'active' | 'pending';
 };

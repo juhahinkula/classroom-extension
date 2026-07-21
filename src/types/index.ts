@@ -8,6 +8,7 @@ export type AssignmentEntry = {
   slug: string;
   name: string;
   mode: string;
+  max_group_size?: number;
   template: TemplateRef;
   autograder: string;
 };
@@ -57,7 +58,7 @@ export type ClassroomInfo = {
   slug: string;
 };
 
-export type AssignmentStatus = 'pending' | 'accepted' | 'submitted';
+export type AssignmentStatus = 'pending' | 'accepted' | 'submitted' | 'group-member';
 
 export type AssignmentInfo = {
   entry: AssignmentEntry;
@@ -66,4 +67,9 @@ export type AssignmentInfo = {
   status: AssignmentStatus;
   repoUrl?: string;
   releaseNotes?: string;
+  isGroupAssignment?: boolean;
+  maxGroupSize?: number;
+  groupRepoUrl?: string;
+  groupFounder?: string;
+  groupMembers?: string[];
 };

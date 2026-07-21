@@ -10,6 +10,8 @@ import {
   getOrgMembership,
   acceptOrgInvite,
   assignmentRepoName,
+  listUserReposInOrg,
+  findGroupMembershipRepo,
   createRepoFromTemplate,
   getRepoDefaultBranch,
   patchRepo,
@@ -129,8 +131,27 @@ export async function acceptAssignment(
       if (mode !== 'individual' && mode !== 'group') {
         throw new Error(`Assignment "${entry.slug}" has unsupported mode "${matched.mode}".`);
       }
+
+      if (mode === 'group') {
+        progress.report({ message: 'Checking existing group membership…', increment: 5 });
+        const siblingSlugs = assignments.map((a) => a.slug);
+        const memberRepos = await listUserReposInOrg(token, org).catch(() => []);
+        const groupMembershipRepo = findGroupMembershipRepo(
+          memberRepos,
+          classroom,
+          entry.slug,
+          login,
+          siblingSlugs
+        );
+        if (groupMembershipRepo) {
+          throw new Error(
+            `You already belong to ${org}/${groupMembershipRepo.name} for assignment "${entry.slug}". Open that repository and continue with your group.`
+          );
+        }
+      }
+
       const tmpl = matched.template;
-      if (!tmpl.owner || !tmpl.repo || !tmpl.branch) {
+      if (!tmpl?.owner || !tmpl.repo || !tmpl.branch) {
         throw new Error(
           `Assignment "${entry.slug}" has an incomplete template ref. Contact your teacher.`
         );

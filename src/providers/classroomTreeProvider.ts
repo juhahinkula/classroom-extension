@@ -4,6 +4,11 @@ import {
   getUser,
   findAcceptedRepoUrl,
   getLatestReleaseNotes,
+  assignmentRepoName,
+  listUserReposInOrg,
+  findGroupMembershipRepo,
+  getRepoCollaboratorLogins,
+  parseGroupRepoFounder,
 } from '../api/classroomApi';
 import { fetchAssignments, isValidAccessKey } from '../api/pagesApi';
 import { AssignmentEntry, AssignmentInfo } from '../types';
@@ -49,13 +54,32 @@ export class AssignmentItem extends vscode.TreeItem {
 
     this.assignmentInfo = info;
     this.contextValue = `assignment-${info.status}`;
-    this.description =
+    const statusText =
       info.status === 'submitted'
         ? '✓ submitted'
         : info.status === 'accepted'
         ? '✓ accepted'
+        : info.status === 'group-member'
+        ? 'already in group'
         : 'not accepted';
-    this.tooltip = `${info.org}/${info.classroom}/${info.entry.slug}\nTemplate: ${info.entry.template.owner}/${info.entry.template.repo}`;
+    const modeText = info.isGroupAssignment ? 'group' : 'individual';
+    this.description = `${statusText} · ${modeText}`;
+
+    const templateOwner = info.entry.template?.owner || 'unknown';
+    const templateRepo = info.entry.template?.repo || 'unknown';
+    const templateText = `Template: ${templateOwner}/${templateRepo}`;
+    const modeDetail = info.isGroupAssignment
+      ? `Mode: group${info.maxGroupSize ? ` (max ${info.maxGroupSize})` : ''}`
+      : 'Mode: individual';
+    const groupDetail = info.groupFounder ? `Group founder: ${info.groupFounder}` : '';
+    this.tooltip = [
+      `${info.org}/${info.classroom}/${info.entry.slug}`,
+      modeDetail,
+      groupDetail,
+      templateText,
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     this.iconPath =
       info.status === 'pending'
@@ -222,26 +246,84 @@ export class ClassroomTreeProvider
       login = '';
     }
 
+    const siblingSlugs = entries.map((candidate) => candidate.slug);
+    let memberRepos = [] as Awaited<ReturnType<typeof listUserReposInOrg>>;
+    if (login) {
+      memberRepos = await listUserReposInOrg(token, org).catch(() => []);
+    }
+    const memberReposByName = new Map(
+      memberRepos.map((repo) => [repo.name.toLowerCase(), repo])
+    );
+
     const items = await Promise.all(
       entries.map(async (entry) => {
+        const mode = (entry.mode || 'individual').trim().toLowerCase();
+        const isGroupAssignment = mode === 'group';
         let repoUrl: string | undefined;
         let releaseNotes: string | undefined;
+        let groupRepoUrl: string | undefined;
+        let groupRepoName: string | undefined;
+        let groupFounder: string | undefined;
+        let status: AssignmentInfo['status'] = 'pending';
+
         if (login) {
-          repoUrl = await findAcceptedRepoUrl(token, org, classroom, entry.slug, login).catch(
-            () => undefined
-          );
+          const ownRepoName = assignmentRepoName(classroom, entry.slug, login);
+          repoUrl = memberReposByName.get(ownRepoName)?.html_url;
+          if (!repoUrl) {
+            repoUrl = await findAcceptedRepoUrl(token, org, classroom, entry.slug, login).catch(
+              () => undefined
+            );
+          }
+
           if (repoUrl) {
-            const repoName = `${classroom.toLowerCase()}-${entry.slug.toLowerCase()}-${login.toLowerCase()}`;
+            status = 'accepted';
+            const repoName = assignmentRepoName(classroom, entry.slug, login);
             releaseNotes = await getLatestReleaseNotes(token, org, repoName).catch(() => undefined);
+            groupRepoUrl = isGroupAssignment ? repoUrl : undefined;
+            groupRepoName = isGroupAssignment ? repoName : undefined;
+            groupFounder = isGroupAssignment ? login.toLowerCase() : undefined;
+          } else if (isGroupAssignment) {
+            const memberRepo = findGroupMembershipRepo(
+              memberRepos,
+              classroom,
+              entry.slug,
+              login,
+              siblingSlugs
+            );
+            if (memberRepo) {
+              status = 'group-member';
+              repoUrl = memberRepo.html_url;
+              groupRepoUrl = memberRepo.html_url;
+              groupRepoName = memberRepo.name;
+              groupFounder = parseGroupRepoFounder(memberRepo.name, classroom, entry.slug);
+            }
+          }
+
+          if (status === 'accepted' && releaseNotes) {
+            status = 'submitted';
           }
         }
+
+        let groupMembers: string[] | undefined;
+        if (isGroupAssignment && groupRepoName) {
+          groupMembers = await getRepoCollaboratorLogins(token, org, groupRepoName).catch(() => []);
+          if (!groupMembers.length && groupFounder) {
+            groupMembers = [groupFounder];
+          }
+        }
+
         const info: AssignmentInfo = {
           entry,
           org,
           classroom,
-          status: repoUrl ? (releaseNotes ? 'submitted' : 'accepted') : 'pending',
+          status,
           repoUrl,
           releaseNotes,
+          isGroupAssignment,
+          maxGroupSize: entry.max_group_size,
+          groupRepoUrl,
+          groupFounder,
+          groupMembers,
         };
         return new AssignmentItem(info);
       })

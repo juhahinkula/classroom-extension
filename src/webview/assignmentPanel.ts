@@ -7,7 +7,8 @@ type WebviewMessage =
   | { type: 'accept' }
   | { type: 'openExternal'; url: string }
   | { type: 'copyCloneCommand'; command: string }
-  | { type: 'cloneAndOpen' };
+  | { type: 'cloneAndOpen' }
+  | { type: 'openManageCollaborators' };
 
 export class AssignmentPanel {
   private static readonly viewType = 'classroom50.assignment';
@@ -114,6 +115,35 @@ export class AssignmentPanel {
         }
         break;
       }
+      case 'openManageCollaborators': {
+        const isGroupAssignment = Boolean(this.info.isGroupAssignment);
+        const maxGroupSize = this.info.maxGroupSize;
+        const groupMembers = this.info.groupMembers;
+        const isGroupFull = Boolean(
+          isGroupAssignment &&
+            typeof maxGroupSize === 'number' &&
+            maxGroupSize > 0 &&
+            Array.isArray(groupMembers) &&
+            groupMembers.length >= maxGroupSize
+        );
+
+        if (isGroupFull) {
+          await vscode.window.showWarningMessage(
+            'Group is full. Maximum group size reached for this assignment.'
+          );
+          break;
+        }
+
+        const repoUrl = this.info.repoUrl;
+        if (!repoUrl) {
+          await vscode.window.showErrorMessage('Repository URL is not available for this assignment');
+          break;
+        }
+
+        const manageUrl = buildManageCollaboratorsUrl(repoUrl);
+        await vscode.env.openExternal(vscode.Uri.parse(manageUrl));
+        break;
+      }
     }
   }
 
@@ -130,4 +160,8 @@ export class AssignmentPanel {
 
 function createNonce(length = 32): string {
   return crypto.randomBytes(length).toString('base64url');
+}
+
+function buildManageCollaboratorsUrl(repoUrl: string): string {
+  return `${repoUrl.replace(/\/$/, '')}/settings/access`;
 }
