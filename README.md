@@ -124,7 +124,7 @@ This button opens the repository collaborator settings on GitHub.
 How to manage teammates for a group assignment:
 1. Open the group assignment in the extension.
 2. Click **Manage Collaborators**.
-3. On GitHub, add or remove collaborators in repository settings.
+3. On GitHub, add or remove collaborators in repository settings. Collaborators should have **write** access.
 
 Only the group founder (the student who accepted the assignment) sees this button.
 Group members can ask their founder to manage collaborators.
