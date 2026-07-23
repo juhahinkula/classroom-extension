@@ -6,8 +6,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## version 0.2.0 
 
-- Group addignment support.
-- Show classroon names (not only slug).
+- Group assignment support.
+- Show classroom names (not only slug).
 - Support empty repository assignments.
 
 ## version 0.1.0 
