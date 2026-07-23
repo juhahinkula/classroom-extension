@@ -1,5 +1,7 @@
 [![CI](https://github.com/juhahinkula/classroom-extension/actions/workflows/ci.yaml/badge.svg)](https://github.com/juhahinkula/classroom-extension/actions/workflows/ci.yaml)
 
+[![Build and Release VSIX](https://github.com/juhahinkula/classroom-extension/actions/workflows/release.yaml/badge.svg)](https://github.com/juhahinkula/classroom-extension/actions/workflows/release.yaml)
+
 # Classroom50 Student extension
 
 Classroom 50 is an open-source GitHub Classroom alternative developed by the Fifty Foundation.
