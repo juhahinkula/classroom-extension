@@ -173,6 +173,7 @@ function normalizeAssignmentEntry(raw: unknown): AssignmentEntry | undefined {
   const maxGroupSizeRaw = raw.max_group_size;
   const maxGroupSize = typeof maxGroupSizeRaw === 'number' ? maxGroupSizeRaw : undefined;
   const emptyRepo = raw.empty_repo === true ? true : undefined;
+  const feedbackPr = raw.feedback_pr === true ? true : undefined;
 
   return {
     slug,
@@ -182,6 +183,7 @@ function normalizeAssignmentEntry(raw: unknown): AssignmentEntry | undefined {
     template: normalizeTemplateRef(raw),
     autograder: readString(raw, 'autograder') || 'default',
     empty_repo: emptyRepo,
+    feedback_pr: feedbackPr,
   };
 }
 

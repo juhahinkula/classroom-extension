@@ -422,6 +422,319 @@ type GitCommit = {
   sha: string;
 };
 
+type PullRequestInfo = {
+  number: number;
+  html_url: string;
+};
+
+type PullRequestListItem = {
+  number: number;
+};
+
+type GitRefInfo = {
+  object: {
+    sha: string;
+  };
+};
+
+type GitCommitInfo = {
+  tree: {
+    sha: string;
+  };
+};
+
+type FeedbackLabel = {
+  name: string;
+  color: string;
+};
+
+export const FEEDBACK_BASE_BRANCH = 'feedback';
+export const FEEDBACK_PR_TITLE = 'Feedback';
+export const FEEDBACK_LABEL_DESCRIPTION = 'Classroom 50 teacher-managed feedback PR';
+export const FEEDBACK_OPEN_COMMIT_MESSAGE = '[Classroom 50] Open Feedback PR (gh student accept)\n\n[skip ci]';
+
+export type EnsureFeedbackPullRequestResult =
+  | { ok: true; created: boolean; url?: string }
+  | { ok: false; reason: string };
+
+class FeedbackBaseMismatchError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FeedbackBaseMismatchError';
+  }
+}
+
+function feedbackLabelForMode(mode: string): FeedbackLabel {
+  if (mode.trim().toLowerCase() === 'group') {
+    return { name: 'Group Assignment', color: '5319E7' };
+  }
+  return { name: 'Individual Assignment', color: '0E8A16' };
+}
+
+function feedbackPrBody(head: string, releaseUrl: string): string {
+  return [
+    ':wave:! Classroom 50 opened this pull request as a place for your teacher to leave feedback on your work. It stays up to date automatically as you push. **Don\'t close or merge this pull request** unless your teacher tells you to.',
+    '',
+    `Each commit is automatically graded - the latest autograding result is [here](${releaseUrl}).`,
+    '',
+    'Your teacher can leave comments and feedback on your code here. Click the **Subscribe** button to be notified when that happens.',
+    '',
+    `Open the **Files changed** or **Commits** tab to see everything you\'ve pushed to \`${head}\` since you accepted the assignment - your teacher sees the same view.`,
+    '',
+    '<details>',
+    '<summary><strong>Notes for teachers</strong></summary>',
+    '',
+    'Use this PR to leave feedback:',
+    '',
+    `- **Files changed** shows the full diff on \`${head}\` since the student accepted. Hover a line and click the blue **+** to leave a line comment.`,
+    '- **Commits** lists each pushed commit; open one to see its changes.',
+    '- Autograde results appear as the `classroom50/autograde` commit status / check on each submission.',
+    `- The [latest autograding result](${releaseUrl}) has the per-test detail behind that status.`,
+    '- This page is an overview - commits, line comments, and a general comment box below.',
+    '',
+    `The base branch (\`${FEEDBACK_BASE_BRANCH}\`) is frozen at the starter so the diff always reflects the full body of work. The PR is kept up to date automatically; merging it is the teacher-side "grading done" signal.`,
+    '</details>',
+  ].join('\n');
+}
+
+function isNoCommitsBetweenError(err: unknown): boolean {
+  if (!(err instanceof GitHubError) || err.status !== 422) {
+    return false;
+  }
+  return err.message.toLowerCase().includes('no commits between');
+}
+
+function isPullRequestAlreadyExistsError(err: unknown): boolean {
+  if (!(err instanceof GitHubError) || err.status !== 422) {
+    return false;
+  }
+  return err.message.toLowerCase().includes('a pull request already exists');
+}
+
+function isRetryableFreshRepoError(err: unknown): boolean {
+  if (!(err instanceof GitHubError)) {
+    return false;
+  }
+  return err.status === 404 || err.status === 409 || err.status >= 500;
+}
+
+async function listPullRequestsByBaseHead(
+  token: string,
+  owner: string,
+  repo: string,
+  base: string,
+  head: string
+): Promise<PullRequestListItem[]> {
+  return ghFetch<PullRequestListItem[]>(
+    token,
+    `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls?state=all&base=${encodeURIComponent(base)}&head=${encodeURIComponent(`${owner}:${head}`)}`
+  );
+}
+
+async function createBranchRef(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+  sha: string
+): Promise<boolean> {
+  try {
+    await ghFetch<void>(token, `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/refs`, {
+      method: 'POST',
+      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha }),
+    });
+    return true;
+  } catch (err) {
+    if (err instanceof GitHubError && err.status === 422) {
+      return false;
+    }
+    throw err;
+  }
+}
+
+async function getBranchRefSha(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string
+): Promise<string> {
+  const ref = await ghFetch<GitRefInfo>(
+    token,
+    `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/ref/heads/${encodeURIComponent(branch)}`
+  );
+  return ref.object.sha;
+}
+
+async function createPullRequest(
+  token: string,
+  owner: string,
+  repo: string,
+  base: string,
+  head: string
+): Promise<PullRequestInfo> {
+  const releaseUrl = `https://github.com/${owner}/${repo}/releases/latest`;
+  return ghFetch<PullRequestInfo>(token, `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls`, {
+    method: 'POST',
+    body: JSON.stringify({
+      base,
+      head,
+      title: FEEDBACK_PR_TITLE,
+      body: feedbackPrBody(head, releaseUrl),
+    }),
+  });
+}
+
+async function createEmptyCommitAndFastForward(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string
+): Promise<void> {
+  const base = `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+  const headSha = await getBranchRefSha(token, owner, repo, branch);
+  const headCommit = await ghFetch<GitCommitInfo>(token, `${base}/git/commits/${encodeURIComponent(headSha)}`);
+  const emptyCommit = await ghFetch<GitCommit>(token, `${base}/git/commits`, {
+    method: 'POST',
+    body: JSON.stringify({
+      message: FEEDBACK_OPEN_COMMIT_MESSAGE,
+      tree: headCommit.tree.sha,
+      parents: [headSha],
+    }),
+  });
+
+  await ghFetch<void>(token, `${base}/git/refs/heads/${encodeURIComponent(branch)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ sha: emptyCommit.sha, force: false }),
+  });
+}
+
+async function ensureFeedbackLabel(
+  token: string,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  mode: string
+): Promise<void> {
+  const label = feedbackLabelForMode(mode);
+  try {
+    await ghFetch<void>(token, `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/labels`, {
+      method: 'POST',
+      body: JSON.stringify({
+        name: label.name,
+        color: label.color,
+        description: FEEDBACK_LABEL_DESCRIPTION,
+      }),
+    });
+  } catch (err) {
+    if (!(err instanceof GitHubError) || err.status !== 422) {
+      throw err;
+    }
+  }
+
+  await ghFetch<void>(
+    token,
+    `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${prNumber}/labels`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ labels: [label.name] }),
+    }
+  );
+}
+
+async function ensureFeedbackPullRequestOnce(params: {
+  token: string;
+  owner: string;
+  repo: string;
+  branch: string;
+  acceptCommitSha: string;
+  mode: string;
+}): Promise<EnsureFeedbackPullRequestResult> {
+  const { token, owner, repo, branch, acceptCommitSha, mode } = params;
+
+  const existing = await listPullRequestsByBaseHead(token, owner, repo, FEEDBACK_BASE_BRANCH, branch);
+  if (existing.length > 0) {
+    return { ok: true, created: false };
+  }
+
+  const created = await createBranchRef(token, owner, repo, FEEDBACK_BASE_BRANCH, acceptCommitSha);
+  if (!created) {
+    const existingBaseSha = await getBranchRefSha(token, owner, repo, FEEDBACK_BASE_BRANCH);
+    if (existingBaseSha !== acceptCommitSha) {
+      throw new FeedbackBaseMismatchError(
+        `${FEEDBACK_BASE_BRANCH} branch is at ${existingBaseSha}, not the expected baseline ${acceptCommitSha} - an org admin must delete it so it can be re-frozen correctly`
+      );
+    }
+  }
+
+  const raceOrThrow = async (createErr: unknown): Promise<PullRequestInfo> => {
+    if (!isPullRequestAlreadyExistsError(createErr)) {
+      throw createErr;
+    }
+    const raced = await listPullRequestsByBaseHead(token, owner, repo, FEEDBACK_BASE_BRANCH, branch);
+    if (raced.length === 0) {
+      throw createErr;
+    }
+    return {
+      number: raced[0].number,
+      html_url: `https://github.com/${owner}/${repo}/pull/${raced[0].number}`,
+    };
+  };
+
+  let pr: PullRequestInfo;
+  try {
+    pr = await createPullRequest(token, owner, repo, FEEDBACK_BASE_BRANCH, branch);
+  } catch (err) {
+    if (!isNoCommitsBetweenError(err)) {
+      pr = await raceOrThrow(err);
+    } else {
+      await createEmptyCommitAndFastForward(token, owner, repo, branch);
+      try {
+        pr = await createPullRequest(token, owner, repo, FEEDBACK_BASE_BRANCH, branch);
+      } catch (retryErr) {
+        pr = await raceOrThrow(retryErr);
+      }
+    }
+  }
+
+  try {
+    await ensureFeedbackLabel(token, owner, repo, pr.number, mode);
+  } catch {
+    // Labeling is best-effort; the PR itself is already in place.
+  }
+
+  return { ok: true, created: true, url: pr.html_url };
+}
+
+export async function ensureFeedbackPullRequest(params: {
+  token: string;
+  owner: string;
+  repo: string;
+  branch: string;
+  acceptCommitSha: string;
+  mode: string;
+}): Promise<EnsureFeedbackPullRequestResult> {
+  const attempts = 3;
+  let lastError: unknown;
+
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await ensureFeedbackPullRequestOnce(params);
+    } catch (err) {
+      if (err instanceof FeedbackBaseMismatchError) {
+        return { ok: false, reason: err.message };
+      }
+      lastError = err;
+      if (!isRetryableFreshRepoError(err) || i === attempts - 1) {
+        break;
+      }
+      await sleep(300 * (i + 1));
+    }
+  }
+
+  const reason = lastError instanceof Error ? lastError.message : 'Unexpected error';
+  return { ok: false, reason };
+}
+
 export async function waitForStableBranch(
   token: string,
   owner: string,
@@ -455,7 +768,7 @@ export async function commitFiles(
   branch: string,
   message: string,
   files: Record<string, string>
-): Promise<void> {
+): Promise<string> {
   const base = `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 
   // 1. Get the current commit + tree SHA
@@ -490,22 +803,38 @@ export async function commitFiles(
     method: 'PATCH',
     body: JSON.stringify({ sha: commit.sha }),
   });
+
+  return commit.sha;
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Render .classroom50.yaml matching the CLI's double-quoted YAML format. */
+/** Render .classroom50.yaml using the official repo-config YAML format. */
 export function renderClassroomMetadata(cfg: ClassroomConfig): string {
-  const lines = [
-    `classroom: "${cfg.classroom}"`,
-    `assignment: "${cfg.assignment}"`,
-  ];
+  const lines: string[] = [];
+
+  if (cfg.schema) {
+    lines.push(`schema: "${cfg.schema}"`);
+  }
+
+  lines.push(`classroom: "${cfg.classroom}"`, `assignment: "${cfg.assignment}"`);
+
+  if (cfg.owner) {
+    lines.push('owner:');
+    lines.push(`  username: "${cfg.owner.username}"`);
+    if (cfg.owner.id !== undefined) {
+      lines.push(`  id: ${cfg.owner.id}`);
+    }
+    if (cfg.owner.acceptedAt) {
+      lines.push(`  accepted_at: "${cfg.owner.acceptedAt}"`);
+    }
+  }
 
   if (cfg.source) {
     lines.push(
-      `source:`,
+      'source:',
       `  owner: "${cfg.source.owner}"`,
       `  repo: "${cfg.source.repo}"`,
       `  branch: "${cfg.source.branch}"`

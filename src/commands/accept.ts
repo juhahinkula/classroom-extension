@@ -20,6 +20,7 @@ import {
   waitForStableBranch,
   commitFiles,
   renderClassroomMetadata,
+  ensureFeedbackPullRequest,
 } from '../api/classroomApi';
 import { fetchAssignments, isValidAccessKey, resolveAutogradeWorkflow } from '../api/pagesApi';
 import { AssignmentInfo, ClassroomConfig } from '../types';
@@ -245,11 +246,17 @@ export async function acceptAssignment(
       const cfg: ClassroomConfig = {
         classroom,
         assignment: entry.slug,
+        schema: 'classroom50/repo-config/v1',
+        owner: {
+          username: user.login,
+          id: user.id,
+          acceptedAt: new Date().toISOString(),
+        },
         source: hasTemplate
           ? { owner: tmpl!.owner, repo: tmpl!.repo, branch: tmpl!.branch }
           : undefined,
       };
-      await commitFiles(
+      const acceptCommitSha = await commitFiles(
         token,
         org,
         repoName,
@@ -260,6 +267,24 @@ export async function acceptAssignment(
           [AUTOGRADE_WORKFLOW_PATH]: shim,
         }
       );
+
+      const wantsFeedbackPr = matched.feedback_pr === true;
+      if (wantsFeedbackPr) {
+        progress.report({ message: 'Opening feedback pull request…', increment: 5 });
+        const feedback = await ensureFeedbackPullRequest({
+          token,
+          owner: org,
+          repo: repoName,
+          branch: targetBranch,
+          acceptCommitSha,
+          mode,
+        });
+        if (!feedback.ok) {
+          vscode.window.showWarningMessage(
+            `Accepted ${repo.full_name}, but could not open the Feedback PR now (${feedback.reason}). Run accept again to retry.`
+          );
+        }
+      }
 
       progress.report({ message: 'Done!', increment: 10 });
 

@@ -2,19 +2,21 @@
 
 All notable changes to the "classroom-extension" extension will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+## 0.3.0 (2026-07-28)
 
-## version 0.2.0 
+- Feedback PR is created when assignment is accepted.
+
+## 0.2.0 (2026-07-23)
 
 - Group assignment support.
 - Show classroom names (not only slug).
 - Support empty repository assignments.
 
-## version 0.1.0 
+## 0.1.0 (2026-07-17)
 
 - Support for unlisted classrooms.
 - Accept flow now writes the autograde workflow with the repository's real default branch.
 
-## version 0.0.9
+## 0.0.9 (2026-07-02)
 
 - Initial release.

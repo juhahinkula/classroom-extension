@@ -281,6 +281,45 @@ suite('fetchAssignments', () => {
     assert.strictEqual(result[0].slug, 'pset1');
   });
 
+  test('preserves feedback_pr=true from manifest entries', async () => {
+    globalThis.fetch = makeFetch({
+      status: 200,
+      json: {
+        schema: ASSIGNMENTS_SCHEMA_V1,
+        assignments: [
+          {
+            slug: 'pset1',
+            mode: 'individual',
+            autograder: 'default',
+            feedback_pr: true,
+          },
+        ],
+      },
+    });
+
+    const result = await fetchAssignments('cs50', 'fall-2026');
+    assert.strictEqual(result[0].feedback_pr, true);
+  });
+
+  test('does not infer feedback_pr when flag is absent', async () => {
+    globalThis.fetch = makeFetch({
+      status: 200,
+      json: {
+        schema: ASSIGNMENTS_SCHEMA_V1,
+        assignments: [
+          {
+            slug: 'pset1',
+            mode: 'individual',
+            autograder: 'default',
+          },
+        ],
+      },
+    });
+
+    const result = await fetchAssignments('cs50', 'fall-2026');
+    assert.strictEqual(result[0].feedback_pr, undefined);
+  });
+
   test('returns empty array when assignments field is absent', async () => {
     globalThis.fetch = makeFetch({
       status: 200,

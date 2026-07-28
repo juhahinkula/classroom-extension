@@ -193,6 +193,26 @@ suite('ghFetch error handling', () => {
     }
   });
 
+  test('appends validation detail messages from errors array when present', async () => {
+    const captured: CapturedRequest = { url: '' };
+    globalThis.fetch = makeMockFetch(captured, {
+      status: 422,
+      ok: false,
+      bodyText: JSON.stringify({
+        message: 'Validation Failed',
+        errors: [{ message: 'No commits between feedback and main' }],
+      }),
+    });
+    try {
+      await ghFetch<unknown>('token', 'repos');
+      assert.fail('Expected GitHubError to be thrown');
+    } catch (err) {
+      assert.ok(err instanceof GitHubError);
+      assert.ok(err.message.includes('Validation Failed'));
+      assert.ok(err.message.includes('No commits between feedback and main'));
+    }
+  });
+
   test('falls back to generic message when response body is not JSON', async () => {
     const captured: CapturedRequest = { url: '' };
     globalThis.fetch = makeMockFetch(captured, {

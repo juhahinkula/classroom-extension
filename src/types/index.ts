@@ -12,6 +12,7 @@ export type AssignmentEntry = {
   template?: TemplateRef;
   autograder: string;
   empty_repo?: boolean;
+  feedback_pr?: boolean;
 };
 
 export type AssignmentsFile = {
@@ -27,9 +28,17 @@ export type ClassroomSource = {
   branch: string;
 };
 
+export type ClassroomOwnerMetadata = {
+  username: string;
+  id?: number;
+  acceptedAt?: string;
+};
+
 export type ClassroomConfig = {
   classroom: string;
   assignment: string;
+  schema?: string;
+  owner?: ClassroomOwnerMetadata;
   source?: ClassroomSource;
 };
 

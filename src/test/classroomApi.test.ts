@@ -4,6 +4,8 @@ import {
   renderClassroomMetadata,
   validateOrgAccess,
   discoverClassroomsFromRepos,
+  commitFiles,
+  ensureFeedbackPullRequest,
 } from '../api/classroomApi';
 import { GitHubRepo } from '../types';
 
@@ -39,15 +41,22 @@ suite('assignmentRepoName', () => {
 // ---------------------------------------------------------------------------
 
 suite('renderClassroomMetadata', () => {
-  test('produces double-quoted YAML with all required fields', () => {
+  test('produces official repo-config YAML with schema, owner metadata, and source block', () => {
     const result = renderClassroomMetadata({
       classroom: 'cs50-fall',
       assignment: 'pset1',
+      schema: 'classroom50/repo-config/v1',
+      owner: { username: 'alice', id: 42, acceptedAt: '2026-07-28T10:30:00.000Z' },
       source: { owner: 'cs50', repo: 'pset1-template', branch: 'main' },
     });
     const expected = [
+      'schema: "classroom50/repo-config/v1"',
       'classroom: "cs50-fall"',
       'assignment: "pset1"',
+      'owner:',
+      '  username: "alice"',
+      '  id: 42',
+      '  accepted_at: "2026-07-28T10:30:00.000Z"',
       'source:',
       '  owner: "cs50"',
       '  repo: "pset1-template"',
@@ -61,6 +70,8 @@ suite('renderClassroomMetadata', () => {
     const result = renderClassroomMetadata({
       classroom: 'c',
       assignment: 'a',
+      schema: 'classroom50/repo-config/v1',
+      owner: { username: 'alice', acceptedAt: '2026-07-28T10:30:00.000Z' },
       source: { owner: 'o', repo: 'r', branch: 'b' },
     });
     assert.ok(result.endsWith('\n'), 'Expected trailing newline');
@@ -70,6 +81,8 @@ suite('renderClassroomMetadata', () => {
     const result = renderClassroomMetadata({
       classroom: 'fall: 2026',
       assignment: 'hw#1',
+      schema: 'classroom50/repo-config/v1',
+      owner: { username: 'alice', acceptedAt: '2026-07-28T10:30:00.000Z' },
       source: { owner: 'o', repo: 'r', branch: 'b' },
     });
     assert.ok(result.includes('"fall: 2026"'));
@@ -202,5 +215,277 @@ suite('discoverClassroomsFromRepos', () => {
     };
     const result = await discoverClassroomsFromRepos('token', 'org', 'alice');
     assert.deepStrictEqual(result, []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// commitFiles
+// ---------------------------------------------------------------------------
+
+suite('commitFiles', () => {
+  let savedFetch: typeof globalThis.fetch;
+
+  setup(() => {
+    savedFetch = globalThis.fetch;
+  });
+
+  teardown(() => {
+    globalThis.fetch = savedFetch;
+  });
+
+  test('returns the created commit SHA', async () => {
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input.toString();
+      if (url.endsWith('/branches/main')) {
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({ commit: { sha: 'parent-sha', commit: { tree: { sha: 'base-tree-sha' } } } }),
+          text: async () => '{}',
+        } as Response;
+      }
+      if (url.endsWith('/git/blobs')) {
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({ sha: 'blob-sha' }),
+          text: async () => '{}',
+        } as Response;
+      }
+      if (url.endsWith('/git/trees')) {
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({ sha: 'new-tree-sha' }),
+          text: async () => '{}',
+        } as Response;
+      }
+      if (url.endsWith('/git/commits') && init?.method === 'POST') {
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({ sha: 'new-commit-sha' }),
+          text: async () => '{}',
+        } as Response;
+      }
+      if (url.endsWith('/git/refs/heads/main') && init?.method === 'PATCH') {
+        return {
+          status: 204,
+          ok: true,
+          json: async () => ({}),
+          text: async () => '',
+        } as Response;
+      }
+      throw new Error(`Unhandled request: ${url} ${init?.method || 'GET'}`);
+    };
+
+    const sha = await commitFiles('token', 'o', 'r', 'main', 'msg', {
+      '.classroom50.yaml': 'content',
+    });
+    assert.strictEqual(sha, 'new-commit-sha');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ensureFeedbackPullRequest
+// ---------------------------------------------------------------------------
+
+suite('ensureFeedbackPullRequest', () => {
+  let savedFetch: typeof globalThis.fetch;
+
+  setup(() => {
+    savedFetch = globalThis.fetch;
+  });
+
+  teardown(() => {
+    globalThis.fetch = savedFetch;
+  });
+
+  type MockApiResponse = {
+    status?: number;
+    body?: unknown;
+    message?: string;
+  };
+
+  function makeApiFetch(
+    handlers: Array<(path: string, method: string, body: unknown) => MockApiResponse | undefined>
+  ): typeof globalThis.fetch {
+    return async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(input.toString());
+      const path = `${url.pathname}${url.search}`.replace(/^\//, '');
+      const method = init?.method || 'GET';
+      const body = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
+
+      for (const handler of handlers) {
+        const res = handler(path, method, body);
+        if (!res) {
+          continue;
+        }
+        const status = res.status ?? 200;
+        const ok = status >= 200 && status < 300;
+        const payload = ok ? res.body ?? {} : { message: res.message ?? 'error' };
+        return {
+          status,
+          ok,
+          json: async () => payload,
+          text: async () => JSON.stringify(payload),
+        } as Response;
+      }
+
+      throw new Error(`Unhandled request: ${method} ${path}`);
+    };
+  }
+
+  test('short-circuits when PR already exists', async () => {
+    globalThis.fetch = makeApiFetch([
+      (path, method) => {
+        if (method === 'GET' && path.includes('/pulls?')) {
+          return { body: [{ number: 7 }] };
+        }
+        return undefined;
+      },
+    ]);
+
+    const result = await ensureFeedbackPullRequest({
+      token: 'token',
+      owner: 'o',
+      repo: 'r',
+      branch: 'main',
+      acceptCommitSha: 'accept-sha',
+      mode: 'individual',
+    });
+    assert.deepStrictEqual(result, { ok: true, created: false });
+  });
+
+  test('creates empty commit and retries after no-commits-between 422', async () => {
+    let prCreateAttempts = 0;
+    let emptyCommitBody: Record<string, unknown> | undefined;
+
+    globalThis.fetch = makeApiFetch([
+      (path, method, body) => {
+        if (method === 'GET' && path.includes('/pulls?')) {
+          return { body: [] };
+        }
+        if (method === 'POST' && path.endsWith('/git/refs')) {
+          return { body: {} };
+        }
+        if (method === 'POST' && path.endsWith('/pulls')) {
+          prCreateAttempts += 1;
+          if (prCreateAttempts === 1) {
+            return { status: 422, message: 'No commits between feedback and main' };
+          }
+          return { body: { number: 1, html_url: 'https://github.com/o/r/pull/1' } };
+        }
+        if (method === 'GET' && path.endsWith('/git/ref/heads/main')) {
+          return { body: { object: { sha: 'accept-sha' } } };
+        }
+        if (method === 'GET' && path.endsWith('/git/commits/accept-sha')) {
+          return { body: { tree: { sha: 'tree-sha' } } };
+        }
+        if (method === 'POST' && path.endsWith('/git/commits')) {
+          emptyCommitBody = body as Record<string, unknown>;
+          return { body: { sha: 'empty-sha' } };
+        }
+        if (method === 'PATCH' && path.endsWith('/git/refs/heads/main')) {
+          return { body: {} };
+        }
+        if (method === 'POST' && path.endsWith('/labels')) {
+          return { body: {} };
+        }
+        if (method === 'POST' && path.endsWith('/issues/1/labels')) {
+          return { body: {} };
+        }
+        return undefined;
+      },
+    ]);
+
+    const result = await ensureFeedbackPullRequest({
+      token: 'token',
+      owner: 'o',
+      repo: 'r',
+      branch: 'main',
+      acceptCommitSha: 'accept-sha',
+      mode: 'individual',
+    });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(prCreateAttempts, 2);
+    assert.deepStrictEqual(emptyCommitBody, {
+      message: '[Classroom 50] Open Feedback PR (gh student accept)\n\n[skip ci]',
+      tree: 'tree-sha',
+      parents: ['accept-sha'],
+    });
+  });
+
+  test('returns non-fatal failure when feedback base exists at wrong SHA', async () => {
+    globalThis.fetch = makeApiFetch([
+      (path, method) => {
+        if (method === 'GET' && path.includes('/pulls?')) {
+          return { body: [] };
+        }
+        if (method === 'POST' && path.endsWith('/git/refs')) {
+          return { status: 422, message: 'Reference already exists' };
+        }
+        if (method === 'GET' && path.endsWith('/git/ref/heads/feedback')) {
+          return { body: { object: { sha: 'student-sha' } } };
+        }
+        return undefined;
+      },
+    ]);
+
+    const result = await ensureFeedbackPullRequest({
+      token: 'token',
+      owner: 'o',
+      repo: 'r',
+      branch: 'main',
+      acceptCommitSha: 'accept-sha',
+      mode: 'individual',
+    });
+
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.reason.includes('not the expected baseline'));
+    }
+  });
+
+  test('handles PR create race by re-querying existing PR', async () => {
+    let listCount = 0;
+
+    globalThis.fetch = makeApiFetch([
+      (path, method) => {
+        if (method === 'GET' && path.includes('/pulls?')) {
+          listCount += 1;
+          if (listCount === 1) {
+            return { body: [] };
+          }
+          return { body: [{ number: 2 }] };
+        }
+        if (method === 'POST' && path.endsWith('/git/refs')) {
+          return { body: {} };
+        }
+        if (method === 'POST' && path.endsWith('/pulls')) {
+          return { status: 422, message: 'A pull request already exists' };
+        }
+        if (method === 'POST' && path.endsWith('/labels')) {
+          return { body: {} };
+        }
+        if (method === 'POST' && path.endsWith('/issues/2/labels')) {
+          return { body: {} };
+        }
+        return undefined;
+      },
+    ]);
+
+    const result = await ensureFeedbackPullRequest({
+      token: 'token',
+      owner: 'o',
+      repo: 'r',
+      branch: 'main',
+      acceptCommitSha: 'accept-sha',
+      mode: 'group',
+    });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(listCount, 2);
   });
 });
