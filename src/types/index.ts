@@ -13,6 +13,7 @@ export type AssignmentEntry = {
   autograder: string;
   empty_repo?: boolean;
   feedback_pr?: boolean;
+  locked?: boolean;
 };
 
 export type AssignmentsFile = {

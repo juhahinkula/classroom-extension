@@ -102,6 +102,10 @@ export class AssignmentItem extends vscode.TreeItem {
   }
 }
 
+export function isAssignmentVisible(entry: AssignmentEntry): boolean {
+  return entry.locked !== true;
+}
+
 export class MessageItem extends vscode.TreeItem {
   constructor(label: string, icon?: string) {
     super(label, vscode.TreeItemCollapsibleState.None);
@@ -285,7 +289,9 @@ export class ClassroomTreeProvider
     );
 
     const items = await Promise.all(
-      entries.map(async (entry) => {
+      entries
+        .filter((entry) => isAssignmentVisible(entry))
+        .map(async (entry) => {
         const mode = (entry.mode || 'individual').trim().toLowerCase();
         const isGroupAssignment = mode === 'group';
         let repoUrl: string | undefined;

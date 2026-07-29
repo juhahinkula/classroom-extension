@@ -301,6 +301,52 @@ suite('fetchAssignments', () => {
     assert.strictEqual(result[0].feedback_pr, true);
   });
 
+  test('preserves locked=true from manifest entries', async () => {
+    globalThis.fetch = makeFetch({
+      status: 200,
+      json: {
+        schema: ASSIGNMENTS_SCHEMA_V1,
+        assignments: [
+          {
+            slug: 'pset1',
+            mode: 'individual',
+            autograder: 'default',
+            locked: true,
+          },
+        ],
+      },
+    });
+
+    const result = await fetchAssignments('cs50', 'fall-2026');
+    assert.strictEqual(result[0].locked, true);
+  });
+
+  test('treats missing or false locked flags as unlocked', async () => {
+    globalThis.fetch = makeFetch({
+      status: 200,
+      json: {
+        schema: ASSIGNMENTS_SCHEMA_V1,
+        assignments: [
+          {
+            slug: 'pset1',
+            mode: 'individual',
+            autograder: 'default',
+          },
+          {
+            slug: 'pset2',
+            mode: 'individual',
+            autograder: 'default',
+            locked: false,
+          },
+        ],
+      },
+    });
+
+    const result = await fetchAssignments('cs50', 'fall-2026');
+    assert.strictEqual(result[0].locked, undefined);
+    assert.strictEqual(result[1].locked, undefined);
+  });
+
   test('does not infer feedback_pr when flag is absent', async () => {
     globalThis.fetch = makeFetch({
       status: 200,

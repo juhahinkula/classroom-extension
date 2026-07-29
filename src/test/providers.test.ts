@@ -7,6 +7,7 @@ import {
   MessageItem,
   ActionItem,
   ClassroomTreeProvider,
+  isAssignmentVisible,
 } from '../providers/classroomTreeProvider';
 import { AssignmentEntry, AssignmentInfo } from '../types';
 
@@ -201,6 +202,17 @@ suite('AssignmentItem – label', () => {
     const info = makeInfo();
     const item = new AssignmentItem(info);
     assert.strictEqual(item.assignmentInfo, info);
+  });
+});
+
+suite('isAssignmentVisible', () => {
+  test('returns false for locked assignments', () => {
+    assert.strictEqual(isAssignmentVisible(makeEntry({ locked: true })), false);
+  });
+
+  test('returns true for unlocked assignments', () => {
+    assert.strictEqual(isAssignmentVisible(makeEntry()), true);
+    assert.strictEqual(isAssignmentVisible(makeEntry({ locked: false })), true);
   });
 });
 

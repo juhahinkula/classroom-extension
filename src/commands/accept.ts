@@ -129,6 +129,10 @@ export async function acceptAssignment(
           `Assignment "${entry.slug}" is not registered in ${org}/${classroom}. Contact your teacher.`
         );
       }
+      if (matched.locked === true) {
+        throw new Error(`Assignment "${entry.slug}" is locked and is not currently available to students.`);
+      }
+
       const mode = (matched.mode || 'individual').trim().toLowerCase();
       if (mode !== 'individual' && mode !== 'group') {
         throw new Error(`Assignment "${entry.slug}" has unsupported mode "${matched.mode}".`);
