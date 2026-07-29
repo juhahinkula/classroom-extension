@@ -321,6 +321,26 @@ suite('fetchAssignments', () => {
     assert.strictEqual(result[0].locked, true);
   });
 
+  test('preserves available_from from manifest entries', async () => {
+    globalThis.fetch = makeFetch({
+      status: 200,
+      json: {
+        schema: ASSIGNMENTS_SCHEMA_V1,
+        assignments: [
+          {
+            slug: 'pset1',
+            mode: 'individual',
+            autograder: 'default',
+            available_from: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+      },
+    });
+
+    const result = await fetchAssignments('cs50', 'fall-2026');
+    assert.strictEqual(result[0].available_from, '2026-01-01T00:00:00.000Z');
+  });
+
   test('treats missing or false locked flags as unlocked', async () => {
     globalThis.fetch = makeFetch({
       status: 200,

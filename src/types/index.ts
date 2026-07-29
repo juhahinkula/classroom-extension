@@ -14,6 +14,7 @@ export type AssignmentEntry = {
   empty_repo?: boolean;
   feedback_pr?: boolean;
   locked?: boolean;
+  available_from?: string;
 };
 
 export type AssignmentsFile = {

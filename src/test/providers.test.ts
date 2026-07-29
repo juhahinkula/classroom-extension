@@ -207,12 +207,33 @@ suite('AssignmentItem – label', () => {
 
 suite('isAssignmentVisible', () => {
   test('returns false for locked assignments', () => {
-    assert.strictEqual(isAssignmentVisible(makeEntry({ locked: true })), false);
+    assert.strictEqual(isAssignmentVisible(makeEntry({ locked: true }), 'pending'), false);
   });
 
-  test('returns true for unlocked assignments', () => {
-    assert.strictEqual(isAssignmentVisible(makeEntry()), true);
-    assert.strictEqual(isAssignmentVisible(makeEntry({ locked: false })), true);
+  test('returns false for unreleased assignments', () => {
+    assert.strictEqual(
+      isAssignmentVisible(makeEntry({ available_from: '2099-01-01T00:00:00.000Z' }), 'pending'),
+      false
+    );
+  });
+
+  test('returns true for released assignments', () => {
+    assert.strictEqual(
+      isAssignmentVisible(makeEntry({ available_from: '2000-01-01T00:00:00.000Z' }), 'pending'),
+      true
+    );
+  });
+
+  test('returns true for already-accepted assignments even if unreleased', () => {
+    assert.strictEqual(
+      isAssignmentVisible(makeEntry({ available_from: '2099-01-01T00:00:00.000Z' }), 'accepted'),
+      true
+    );
+  });
+
+  test('returns false when no release date is provided', () => {
+    assert.strictEqual(isAssignmentVisible(makeEntry(), 'pending'), false);
+    assert.strictEqual(isAssignmentVisible(makeEntry({ locked: false }), 'pending'), false);
   });
 });
 

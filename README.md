@@ -91,6 +91,10 @@ Open the classroom in the tree view to see the list of assignments.
 
 ![Assignments](images/assignments.png)
 
+> **Assignment visibility note for students**
+> Assignments are shown only after their release date has passed.
+> If no release date is set, the assignment is hidden from the list until you accept it from the invite link your teacher provides.
+
 ###  Accept assignment
 
 The ***not accepted*** status means you must accept the assignment before you can work on it.

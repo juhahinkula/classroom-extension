@@ -175,6 +175,7 @@ function normalizeAssignmentEntry(raw: unknown): AssignmentEntry | undefined {
   const emptyRepo = raw.empty_repo === true ? true : undefined;
   const feedbackPr = raw.feedback_pr === true ? true : undefined;
   const locked = raw.locked === true ? true : undefined;
+  const availableFrom = typeof raw.available_from === 'string' ? raw.available_from.trim() : undefined;
 
   return {
     slug,
@@ -186,6 +187,7 @@ function normalizeAssignmentEntry(raw: unknown): AssignmentEntry | undefined {
     empty_repo: emptyRepo,
     feedback_pr: feedbackPr,
     locked,
+    available_from: availableFrom,
   };
 }
 

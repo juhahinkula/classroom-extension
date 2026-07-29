@@ -102,8 +102,22 @@ export class AssignmentItem extends vscode.TreeItem {
   }
 }
 
-export function isAssignmentVisible(entry: AssignmentEntry): boolean {
-  return entry.locked !== true;
+export function isAssignmentVisible(entry: AssignmentEntry, status: AssignmentInfo['status']): boolean {
+  if (entry.locked === true) {
+    return false;
+  }
+
+  const availableFrom = entry.available_from?.trim();
+  if (!availableFrom) {
+    return status === 'accepted' || status === 'submitted' || status === 'group-member';
+  }
+
+  const releaseDate = Date.parse(availableFrom);
+  if (Number.isNaN(releaseDate)) {
+    return status === 'accepted' || status === 'submitted' || status === 'group-member';
+  }
+
+  return status === 'accepted' || status === 'submitted' || status === 'group-member' || Date.now() >= releaseDate;
 }
 
 export class MessageItem extends vscode.TreeItem {
@@ -290,9 +304,9 @@ export class ClassroomTreeProvider
 
     const items = await Promise.all(
       entries
-        .filter((entry) => isAssignmentVisible(entry))
         .map(async (entry) => {
         const mode = (entry.mode || 'individual').trim().toLowerCase();
+        const isVisible = (status: AssignmentInfo['status']) => isAssignmentVisible(entry, status);
         const isGroupAssignment = mode === 'group';
         let repoUrl: string | undefined;
         let releaseNotes: string | undefined;
@@ -347,6 +361,10 @@ export class ClassroomTreeProvider
           }
         }
 
+        if (!isVisible(status)) {
+          return undefined;
+        }
+
         const info: AssignmentInfo = {
           entry,
           org,
@@ -364,7 +382,7 @@ export class ClassroomTreeProvider
       })
     );
 
-    return items;
+    return items.filter((item): item is AssignmentItem => Boolean(item));
   }
 
   private classroomAccessKeyStoreKey(org: string, classroom: string): string {

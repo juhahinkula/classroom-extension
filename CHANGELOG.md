@@ -2,6 +2,11 @@
 
 All notable changes to the "classroom-extension" extension will be documented in this file.
 
+## 0.4.0 (2026-07-29)
+
+- Locked assignments are no longer shown in the student assignment list.
+- Assignments with release date are hidden until the release date passes, except for assignments the student has already accepted.
+
 ## 0.3.0 (2026-07-28)
 
 - Feedback PR is created when assignment is accepted.
