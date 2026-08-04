@@ -4,10 +4,13 @@ export type TemplateRef = {
   branch: string;
 };
 
+export type RepoPermission = 'pull' | 'triage' | 'push' | 'maintain' | 'admin';
+
 export type AssignmentEntry = {
   slug: string;
   name: string;
   mode: string;
+  student_permission?: RepoPermission;
   max_group_size?: number;
   template?: TemplateRef;
   autograder: string;

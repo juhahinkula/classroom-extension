@@ -341,6 +341,66 @@ suite('fetchAssignments', () => {
     assert.strictEqual(result[0].available_from, '2026-01-01T00:00:00.000Z');
   });
 
+  test('preserves valid student_permission from manifest entries', async () => {
+    globalThis.fetch = makeFetch({
+      status: 200,
+      json: {
+        schema: ASSIGNMENTS_SCHEMA_V1,
+        assignments: [
+          {
+            slug: 'pset1',
+            mode: 'individual',
+            autograder: 'default',
+            student_permission: 'triage',
+          },
+        ],
+      },
+    });
+
+    const result = await fetchAssignments('cs50', 'fall-2026');
+    assert.strictEqual(result[0].student_permission, 'triage');
+  });
+
+  test('normalizes student_permission to lowercase', async () => {
+    globalThis.fetch = makeFetch({
+      status: 200,
+      json: {
+        schema: ASSIGNMENTS_SCHEMA_V1,
+        assignments: [
+          {
+            slug: 'pset1',
+            mode: 'individual',
+            autograder: 'default',
+            student_permission: 'Maintain',
+          },
+        ],
+      },
+    });
+
+    const result = await fetchAssignments('cs50', 'fall-2026');
+    assert.strictEqual(result[0].student_permission, 'maintain');
+  });
+
+  test('ignores invalid student_permission values', async () => {
+    globalThis.fetch = makeFetch({
+      status: 200,
+      json: {
+        schema: ASSIGNMENTS_SCHEMA_V1,
+        assignments: [
+          {
+            slug: 'pset1',
+            mode: 'individual',
+            autograder: 'default',
+            student_permission: 'owner',
+          },
+        ],
+      },
+    });
+
+    const result = await fetchAssignments('cs50', 'fall-2026');
+    assert.strictEqual(result[0].student_permission, undefined);
+  });
+
   test('treats missing or false locked flags as unlocked', async () => {
     globalThis.fetch = makeFetch({
       status: 200,

@@ -23,7 +23,7 @@ import {
   ensureFeedbackPullRequest,
 } from '../api/classroomApi';
 import { fetchAssignments, isValidAccessKey, resolveAutogradeWorkflow } from '../api/pagesApi';
-import { AssignmentInfo, ClassroomConfig } from '../types';
+import { AssignmentInfo, ClassroomConfig, RepoPermission } from '../types';
 
 const CLASSROOM_METADATA_PATH = '.classroom50.yaml';
 const AUTOGRADE_WORKFLOW_PATH = '.github/workflows/autograde.yaml';
@@ -57,6 +57,18 @@ async function promptForAccessKey(org: string, classroom: string): Promise<strin
 
 function classroomAccessKeyStoreKey(org: string, classroom: string): string {
   return `classroom-access-key:${org.toLowerCase()}/${classroom.toLowerCase()}`;
+}
+
+export function resolveFounderPermission(
+  mode: string,
+  studentPermission?: RepoPermission
+): RepoPermission {
+  const normalizedMode = mode.trim().toLowerCase();
+  const wanted = studentPermission || (normalizedMode === 'group' ? 'admin' : 'push');
+  if (normalizedMode === 'group' && wanted !== 'admin') {
+    return 'admin';
+  }
+  return wanted;
 }
 
 export async function acceptAssignment(
@@ -137,6 +149,7 @@ export async function acceptAssignment(
       if (mode !== 'individual' && mode !== 'group') {
         throw new Error(`Assignment "${entry.slug}" has unsupported mode "${matched.mode}".`);
       }
+      const founderPermission = resolveFounderPermission(mode, matched.student_permission);
 
       if (mode === 'group') {
         progress.report({ message: 'Checking existing group membership…', increment: 5 });
@@ -186,6 +199,13 @@ export async function acceptAssignment(
         : await createEmptyPrivateRepo(token, org, repoName, !isEmptyRepo);
 
       if (alreadyExists) {
+        progress.report({ message: 'Reconciling your repository access…', increment: 5 });
+        try {
+          await addCollaborator(token, org, repoName, login, founderPermission);
+        } catch {
+          // Non-fatal on already-accepted repositories.
+        }
+
         vscode.window.showInformationMessage(
           `Assignment already accepted: ${repo.full_name}`,
           'Open on GitHub'
@@ -204,12 +224,10 @@ export async function acceptAssignment(
         has_wiki: false,
       });
 
-      // add student as maintain collaborator
-      progress.report({ message: 'Adding you as collaborator…', increment: 10 });
-      const founderPermission = mode === 'group' ? 'admin' : 'maintain';
-      await addCollaborator(token, org, repoName, login, founderPermission);
-
       if (isEmptyRepo) {
+        progress.report({ message: 'Setting your repository access…', increment: 10 });
+        await addCollaborator(token, org, repoName, login, founderPermission);
+
         progress.report({ message: 'Done!', increment: 20 });
 
         const choice = await vscode.window.showInformationMessage(
@@ -289,6 +307,9 @@ export async function acceptAssignment(
           );
         }
       }
+
+      progress.report({ message: 'Setting your repository access…', increment: 5 });
+      await addCollaborator(token, org, repoName, login, founderPermission);
 
       progress.report({ message: 'Done!', increment: 10 });
 

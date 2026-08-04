@@ -1,8 +1,15 @@
-import { AssignmentEntry, AssignmentsFile, ASSIGNMENTS_SCHEMA_V1, TemplateRef } from '../types';
+import { AssignmentEntry, AssignmentsFile, ASSIGNMENTS_SCHEMA_V1, RepoPermission, TemplateRef } from '../types';
 
 const CONFIG_REPO = 'classroom50';
 const PAGES_FETCH_TIMEOUT_MS = 15_000;
 const ACCESS_KEY_PATTERN = /^[a-z0-9]{4,64}$/;
+const REPO_PERMISSION_VALUES = new Set<RepoPermission>([
+  'pull',
+  'triage',
+  'push',
+  'maintain',
+  'admin',
+]);
 
 function classroomPagesSegment(classroom: string, accessKey?: string): string {
   return accessKey
@@ -160,6 +167,19 @@ function normalizeTemplateRef(raw: Record<string, unknown>): TemplateRef | undef
   };
 }
 
+function normalizeRepoPermission(raw: unknown): RepoPermission | undefined {
+  if (typeof raw !== 'string') {
+    return undefined;
+  }
+  const normalized = raw.trim().toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+  return REPO_PERMISSION_VALUES.has(normalized as RepoPermission)
+    ? (normalized as RepoPermission)
+    : undefined;
+}
+
 function normalizeAssignmentEntry(raw: unknown): AssignmentEntry | undefined {
   if (!isRecord(raw)) {
     return undefined;
@@ -181,6 +201,7 @@ function normalizeAssignmentEntry(raw: unknown): AssignmentEntry | undefined {
     slug,
     name: readString(raw, 'name') || slug,
     mode: readString(raw, 'mode') || 'individual',
+    student_permission: normalizeRepoPermission(raw.student_permission),
     max_group_size: maxGroupSize,
     template: normalizeTemplateRef(raw),
     autograder: readString(raw, 'autograder') || 'default',
