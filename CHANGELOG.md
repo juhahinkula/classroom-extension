@@ -2,6 +2,10 @@
 
 All notable changes to the "classroom-extension" extension will be documented in this file.
 
+## 0.5.0 (2026-08-04)
+- Align repo features behavior with Classroom50.
+- Support student repository permission in assignment acceptance.
+
 ## 0.4.0 (2026-07-29)
 
 - Locked assignments are no longer shown in the student assignment list.
