@@ -401,6 +401,103 @@ suite('fetchAssignments', () => {
     assert.strictEqual(result[0].student_permission, undefined);
   });
 
+  test('preserves repo_features booleans from manifest entries', async () => {
+    globalThis.fetch = makeFetch({
+      status: 200,
+      json: {
+        schema: ASSIGNMENTS_SCHEMA_V1,
+        assignments: [
+          {
+            slug: 'pset1',
+            mode: 'individual',
+            autograder: 'default',
+            repo_features: {
+              issues: true,
+              wiki: false,
+              projects: true,
+              pull_requests: false,
+            },
+          },
+        ],
+      },
+    });
+
+    const result = await fetchAssignments('cs50', 'fall-2026');
+    assert.deepStrictEqual(result[0].repo_features, {
+      issues: true,
+      wiki: false,
+      projects: true,
+      pull_requests: false,
+    });
+  });
+
+  test('preserves partial repo_features object', async () => {
+    globalThis.fetch = makeFetch({
+      status: 200,
+      json: {
+        schema: ASSIGNMENTS_SCHEMA_V1,
+        assignments: [
+          {
+            slug: 'pset1',
+            mode: 'individual',
+            autograder: 'default',
+            repo_features: {
+              issues: true,
+            },
+          },
+        ],
+      },
+    });
+
+    const result = await fetchAssignments('cs50', 'fall-2026');
+    assert.deepStrictEqual(result[0].repo_features, { issues: true });
+  });
+
+  test('returns undefined repo_features when manifest object is empty', async () => {
+    globalThis.fetch = makeFetch({
+      status: 200,
+      json: {
+        schema: ASSIGNMENTS_SCHEMA_V1,
+        assignments: [
+          {
+            slug: 'pset1',
+            mode: 'individual',
+            autograder: 'default',
+            repo_features: {},
+          },
+        ],
+      },
+    });
+
+    const result = await fetchAssignments('cs50', 'fall-2026');
+    assert.strictEqual(result[0].repo_features, undefined);
+  });
+
+  test('ignores invalid repo_features value types', async () => {
+    globalThis.fetch = makeFetch({
+      status: 200,
+      json: {
+        schema: ASSIGNMENTS_SCHEMA_V1,
+        assignments: [
+          {
+            slug: 'pset1',
+            mode: 'individual',
+            autograder: 'default',
+            repo_features: {
+              issues: 'yes',
+              wiki: null,
+              projects: 1,
+              pull_requests: 'no',
+            },
+          },
+        ],
+      },
+    });
+
+    const result = await fetchAssignments('cs50', 'fall-2026');
+    assert.strictEqual(result[0].repo_features, undefined);
+  });
+
   test('treats missing or false locked flags as unlocked', async () => {
     globalThis.fetch = makeFetch({
       status: 200,

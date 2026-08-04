@@ -6,6 +6,7 @@ import {
   discoverClassroomsFromRepos,
   commitFiles,
   ensureFeedbackPullRequest,
+  getRepoFeatureSettings,
 } from '../api/classroomApi';
 import { GitHubRepo } from '../types';
 
@@ -215,6 +216,58 @@ suite('discoverClassroomsFromRepos', () => {
     };
     const result = await discoverClassroomsFromRepos('token', 'org', 'alice');
     assert.deepStrictEqual(result, []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getRepoFeatureSettings
+// ---------------------------------------------------------------------------
+
+suite('getRepoFeatureSettings', () => {
+  let savedFetch: typeof globalThis.fetch;
+
+  setup(() => {
+    savedFetch = globalThis.fetch;
+  });
+
+  teardown(() => {
+    globalThis.fetch = savedFetch;
+  });
+
+  test('returns normalized feature booleans from repo payload', async () => {
+    globalThis.fetch = async () =>
+      ({
+        status: 200,
+        ok: true,
+        json: async () => ({
+          has_issues: true,
+          has_wiki: false,
+          has_projects: true,
+          has_pull_requests: false,
+        }),
+        text: async () => '{}',
+      }) as Response;
+
+    const result = await getRepoFeatureSettings('token', 'cs50', 'template-repo');
+    assert.deepStrictEqual(result, {
+      has_issues: true,
+      has_wiki: false,
+      has_projects: true,
+      has_pull_requests: false,
+    });
+  });
+
+  test('returns undefined for 404 response', async () => {
+    globalThis.fetch = async () =>
+      ({
+        status: 404,
+        ok: false,
+        json: async () => ({ message: 'Not Found' }),
+        text: async () => JSON.stringify({ message: 'Not Found' }),
+      }) as Response;
+
+    const result = await getRepoFeatureSettings('token', 'cs50', 'missing-template');
+    assert.strictEqual(result, undefined);
   });
 });
 

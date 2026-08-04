@@ -15,18 +15,27 @@ import {
   createRepoFromTemplate,
   createEmptyPrivateRepo,
   getRepoDefaultBranch,
+  getRepoFeatureSettings,
   patchRepo,
   addCollaborator,
   waitForStableBranch,
   commitFiles,
   renderClassroomMetadata,
   ensureFeedbackPullRequest,
+  RepoFeatureSettings,
 } from '../api/classroomApi';
 import { fetchAssignments, isValidAccessKey, resolveAutogradeWorkflow } from '../api/pagesApi';
-import { AssignmentInfo, ClassroomConfig, RepoPermission } from '../types';
+import { AssignmentInfo, ClassroomConfig, RepoFeatures, RepoPermission } from '../types';
 
 const CLASSROOM_METADATA_PATH = '.classroom50.yaml';
 const AUTOGRADE_WORKFLOW_PATH = '.github/workflows/autograde.yaml';
+
+export type RepoFeaturePatch = {
+  has_issues?: boolean;
+  has_wiki?: boolean;
+  has_projects?: boolean;
+  has_pull_requests?: boolean;
+};
 
 function isPagesNotFoundError(err: unknown): boolean {
   if (!(err instanceof Error)) {
@@ -59,6 +68,63 @@ function classroomAccessKeyStoreKey(org: string, classroom: string): string {
   return `classroom-access-key:${org.toLowerCase()}/${classroom.toLowerCase()}`;
 }
 
+function hasPatchEntries(patch: RepoFeaturePatch): boolean {
+  return Object.keys(patch).length > 0;
+}
+
+function patchesEqual(a: RepoFeaturePatch, b: RepoFeaturePatch): boolean {
+  const keys = ['has_issues', 'has_wiki', 'has_projects', 'has_pull_requests'] as const;
+  return keys.every((key) => a[key] === b[key]);
+}
+
+function hasAnyInheritedRepoFeature(repoFeatures?: RepoFeatures): boolean {
+  return (
+    repoFeatures?.issues === undefined ||
+    repoFeatures?.wiki === undefined ||
+    repoFeatures?.projects === undefined ||
+    repoFeatures?.pull_requests === undefined
+  );
+}
+
+function formatErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+async function applyRepoFeaturePatches(params: {
+  token: string;
+  org: string;
+  repoName: string;
+  repoFullName: string;
+  patches: { full: RepoFeaturePatch; explicit: RepoFeaturePatch };
+}): Promise<void> {
+  const { token, org, repoName, repoFullName, patches } = params;
+  if (!hasPatchEntries(patches.full)) {
+    return;
+  }
+
+  try {
+    await patchRepo(token, org, repoName, patches.full);
+  } catch (firstPatchError) {
+    const canRetryExplicit =
+      hasPatchEntries(patches.explicit) &&
+      !patchesEqual(patches.full, patches.explicit);
+
+    if (canRetryExplicit) {
+      try {
+        await patchRepo(token, org, repoName, patches.explicit);
+      } catch (retryPatchError) {
+        vscode.window.showWarningMessage(
+          `Accepted ${repoFullName}, but some repository feature settings could not be applied (${formatErrorMessage(retryPatchError)}).`
+        );
+      }
+    } else {
+      vscode.window.showWarningMessage(
+        `Accepted ${repoFullName}, but some repository feature settings could not be applied (${formatErrorMessage(firstPatchError)}).`
+      );
+    }
+  }
+}
+
 export function resolveFounderPermission(
   mode: string,
   studentPermission?: RepoPermission
@@ -69,6 +135,40 @@ export function resolveFounderPermission(
     return 'admin';
   }
   return wanted;
+}
+
+export function resolveRepoFeaturePatches(
+  repoFeatures?: RepoFeatures,
+  templateFeatures?: RepoFeatureSettings
+): { full: RepoFeaturePatch; explicit: RepoFeaturePatch } {
+  const full: RepoFeaturePatch = {};
+  const explicit: RepoFeaturePatch = {};
+
+  const apply = (
+    assignmentValue: boolean | undefined,
+    patchKey: keyof RepoFeaturePatch,
+    templateValue: boolean | undefined
+  ) => {
+    if (typeof assignmentValue === 'boolean') {
+      full[patchKey] = assignmentValue;
+      explicit[patchKey] = assignmentValue;
+      return;
+    }
+    if (typeof templateValue === 'boolean') {
+      full[patchKey] = templateValue;
+    }
+  };
+
+  apply(repoFeatures?.issues, 'has_issues', templateFeatures?.has_issues);
+  apply(repoFeatures?.wiki, 'has_wiki', templateFeatures?.has_wiki);
+  apply(repoFeatures?.projects, 'has_projects', templateFeatures?.has_projects);
+  apply(
+    repoFeatures?.pull_requests,
+    'has_pull_requests',
+    templateFeatures?.has_pull_requests
+  );
+
+  return { full, explicit };
 }
 
 export async function acceptAssignment(
@@ -118,6 +218,7 @@ export async function acceptAssignment(
           throw err;
         }
 
+        // Get access key for unlisted assignment
         const accessKey = await promptForAccessKey(org, classroom);
         if (!accessKey) {
           return undefined;
@@ -186,6 +287,19 @@ export async function acceptAssignment(
         );
       }
 
+      let templateFeatures: RepoFeatureSettings | undefined;
+      if (hasTemplate && hasAnyInheritedRepoFeature(matched.repo_features)) {
+        templateFeatures = await getRepoFeatureSettings(
+          token,
+          tmpl!.owner,
+          tmpl!.repo
+        ).catch(() => undefined);
+      }
+      const repoFeaturePatches = resolveRepoFeaturePatches(
+        matched.repo_features,
+        templateFeatures
+      );
+
       const repoName = assignmentRepoName(classroom, entry.slug, login);
       progress.report({ message: `Creating repository ${org}/${repoName}…`, increment: 20 });
       const { repo, alreadyExists } = hasTemplate
@@ -217,14 +331,16 @@ export async function acceptAssignment(
         return repo.html_url;
       }
 
-      progress.report({ message: 'Configuring repository…', increment: 10 });
-      await patchRepo(token, org, repoName, {
-        has_issues: false,
-        has_projects: false,
-        has_wiki: false,
-      });
-
       if (isEmptyRepo) {
+        progress.report({ message: 'Configuring repository…', increment: 10 });
+        await applyRepoFeaturePatches({
+          token,
+          org,
+          repoName,
+          repoFullName: repo.full_name,
+          patches: repoFeaturePatches,
+        });
+
         progress.report({ message: 'Setting your repository access…', increment: 10 });
         await addCollaborator(token, org, repoName, login, founderPermission);
 
@@ -307,6 +423,15 @@ export async function acceptAssignment(
           );
         }
       }
+
+      progress.report({ message: 'Configuring repository…', increment: 5 });
+      await applyRepoFeaturePatches({
+        token,
+        org,
+        repoName,
+        repoFullName: repo.full_name,
+        patches: repoFeaturePatches,
+      });
 
       progress.report({ message: 'Setting your repository access…', increment: 5 });
       await addCollaborator(token, org, repoName, login, founderPermission);

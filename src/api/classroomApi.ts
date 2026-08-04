@@ -268,6 +268,13 @@ type RepoInfo = {
   default_branch?: string;
 };
 
+export type RepoFeatureSettings = {
+  has_issues?: boolean;
+  has_wiki?: boolean;
+  has_projects?: boolean;
+  has_pull_requests?: boolean;
+};
+
 export async function getRepoDefaultBranch(
   token: string,
   owner: string,
@@ -279,6 +286,31 @@ export async function getRepoDefaultBranch(
       `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`
     );
     return info.default_branch;
+  } catch (err) {
+    if (err instanceof GitHubError && err.status === 404) {
+      return undefined;
+    }
+    throw err;
+  }
+}
+
+export async function getRepoFeatureSettings(
+  token: string,
+  owner: string,
+  repo: string
+): Promise<RepoFeatureSettings | undefined> {
+  try {
+    const info = await ghFetch<RepoFeatureSettings>(
+      token,
+      `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`
+    );
+    return {
+      has_issues: typeof info.has_issues === 'boolean' ? info.has_issues : undefined,
+      has_wiki: typeof info.has_wiki === 'boolean' ? info.has_wiki : undefined,
+      has_projects: typeof info.has_projects === 'boolean' ? info.has_projects : undefined,
+      has_pull_requests:
+        typeof info.has_pull_requests === 'boolean' ? info.has_pull_requests : undefined,
+    };
   } catch (err) {
     if (err instanceof GitHubError && err.status === 404) {
       return undefined;

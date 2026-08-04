@@ -6,11 +6,19 @@ export type TemplateRef = {
 
 export type RepoPermission = 'pull' | 'triage' | 'push' | 'maintain' | 'admin';
 
+export type RepoFeatures = {
+  issues?: boolean;
+  wiki?: boolean;
+  projects?: boolean;
+  pull_requests?: boolean;
+};
+
 export type AssignmentEntry = {
   slug: string;
   name: string;
   mode: string;
   student_permission?: RepoPermission;
+  repo_features?: RepoFeatures;
   max_group_size?: number;
   template?: TemplateRef;
   autograder: string;

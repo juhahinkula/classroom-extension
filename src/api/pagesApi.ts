@@ -1,4 +1,11 @@
-import { AssignmentEntry, AssignmentsFile, ASSIGNMENTS_SCHEMA_V1, RepoPermission, TemplateRef } from '../types';
+import {
+  AssignmentEntry,
+  AssignmentsFile,
+  ASSIGNMENTS_SCHEMA_V1,
+  RepoFeatures,
+  RepoPermission,
+  TemplateRef,
+} from '../types';
 
 const CONFIG_REPO = 'classroom50';
 const PAGES_FETCH_TIMEOUT_MS = 15_000;
@@ -180,6 +187,28 @@ function normalizeRepoPermission(raw: unknown): RepoPermission | undefined {
     : undefined;
 }
 
+function normalizeRepoFeatures(raw: unknown): RepoFeatures | undefined {
+  if (!isRecord(raw)) {
+    return undefined;
+  }
+
+  const repoFeatures: RepoFeatures = {};
+  if (typeof raw.issues === 'boolean') {
+    repoFeatures.issues = raw.issues;
+  }
+  if (typeof raw.wiki === 'boolean') {
+    repoFeatures.wiki = raw.wiki;
+  }
+  if (typeof raw.projects === 'boolean') {
+    repoFeatures.projects = raw.projects;
+  }
+  if (typeof raw.pull_requests === 'boolean') {
+    repoFeatures.pull_requests = raw.pull_requests;
+  }
+
+  return Object.keys(repoFeatures).length ? repoFeatures : undefined;
+}
+
 function normalizeAssignmentEntry(raw: unknown): AssignmentEntry | undefined {
   if (!isRecord(raw)) {
     return undefined;
@@ -202,6 +231,7 @@ function normalizeAssignmentEntry(raw: unknown): AssignmentEntry | undefined {
     name: readString(raw, 'name') || slug,
     mode: readString(raw, 'mode') || 'individual',
     student_permission: normalizeRepoPermission(raw.student_permission),
+    repo_features: normalizeRepoFeatures(raw.repo_features),
     max_group_size: maxGroupSize,
     template: normalizeTemplateRef(raw),
     autograder: readString(raw, 'autograder') || 'default',
